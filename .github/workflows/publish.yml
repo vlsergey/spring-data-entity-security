@@ -23,6 +23,11 @@ jobs:
         java-version: 11
         distribution: 'adopt'
 
+    - name: Set git environment (user.name)
+      run: git config user.name "${{github.actor}}"
+    - name: Set git environment (user.email)
+      run: git config user.email "${{github.actor}}@users.noreply.github.com"
+
     - name: Cache Gradle packages
       uses: actions/cache@v2
       with:
@@ -32,11 +37,15 @@ jobs:
         key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
         restore-keys: |
           ${{ runner.os }}-gradle-
-        
+
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew
-    - name: Release with Gradle
-      run: ./gradlew release -Prelease.useAutomaticVersion=true -Prelease.releaseVersion=${{github.event.inputs.releaseVersion}} -Pgradle.publish.key=${{secrets.GRADLE_PUBLISH_KEY}} -Pgradle.publish.secret=${{secrets.GRADLE_PUBLISH_SECRET}}
+    - name: Release new version
+      run: ./gradlew release -Prelease.useAutomaticVersion=true -Prelease.releaseVersion=${{github.event.inputs.releaseVersion}}
+    - name: Publish
+      run: ./gradlew publish
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Cleanup Gradle Cache
       # Remove some files from the Gradle cache, so they aren't cached by GitHub Actions.
