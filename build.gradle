@@ -105,7 +105,7 @@ publishing {
 	repositories {
 		maven {
 			name = "GitHubPackages"
-			url = "https://maven.pkg.github.com/vlsergey/spring-data"
+			url = "https://maven.pkg.github.com/vlsergey/spring-data-entity-security"
 			credentials {
 				username = System.getenv("GITHUB_ACTOR")
 				password = System.getenv("GITHUB_TOKEN")
