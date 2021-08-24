@@ -7,7 +7,7 @@ Add GitHub package repository to `build.gradle`:
 ```groovy
 repositories {
     maven {
-        url = uri("https://maven.pkg.github.com/vlsergey/spring-data-entity-security")
+        url = uri("https://maven.pkg.github.com/vlsergey/spring-data")
     }
 }
 ```
