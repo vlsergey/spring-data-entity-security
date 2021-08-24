@@ -15,8 +15,9 @@ repositories {
 Add package as a dependency:
 ```groovy
 dependencies {
-    implementation group: 'io.github.vlsergey', name: 'spring-data-entity-security', version: '0.0.3'
-}```
+    implementation group: 'io.github.vlsergey', name: 'spring-data-entity-security', version: '0.0.4'
+}
+```
 
 
 Add `repositoryFactoryBeanClass` parameter to your `@EnableJpaRepositories` annotation:
