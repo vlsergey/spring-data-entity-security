@@ -16,7 +16,7 @@ compileJava {
 	options.compilerArgs << '-parameters'
 	options.debugOptions.debugLevel = "source,lines,vars"
 	options.encoding = 'UTF-8'
-	options.release = 11
+	options.release = 8
 }
 
 compileTestJava {

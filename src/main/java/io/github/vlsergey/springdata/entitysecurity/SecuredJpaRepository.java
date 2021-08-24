@@ -1,7 +1,10 @@
 package io.github.vlsergey.springdata.entitysecurity;
 
+import static java.util.Collections.emptyList;
+import static java.util.Collections.singletonList;
 import static java.util.stream.Collectors.toList;
 
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -24,7 +27,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.jpa.repository.support.JpaEntityInformation;
-import org.springframework.data.jpa.repository.support.JpaEntityInformationSupport;
 import org.springframework.data.jpa.repository.support.SimpleJpaRepository;
 import org.springframework.lang.Nullable;
 import org.springframework.transaction.annotation.Transactional;
@@ -221,7 +223,8 @@ public class SecuredJpaRepository<T, ID> extends SimpleJpaRepository<T, ID> impl
 	public List<T> findAllById(Iterable<ID> ids) {
 		return switchByCondition(Collections::emptyList, () -> findAllById(ids), condition -> {
 			// TODO: optimize with batch query by ID
-			return StreamSupport.stream(ids.spliterator(), false).flatMap(id -> findById(id).stream())
+			return StreamSupport.stream(ids.spliterator(), false).map(id -> findById(id))
+					.map(op -> op.map(id -> singletonList(id)).orElse(emptyList())).flatMap(Collection::stream)
 					.collect(toList());
 		});
 	}

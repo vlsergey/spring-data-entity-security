@@ -29,7 +29,7 @@ public interface FileTestEntityRepository extends JpaRepository<FileTestEntity, 
 			if (login.equals("root")) {
 				return StandardConditions.allow();
 			}
-			if (login == null || login.isBlank()) {
+			if (login == null || login.isEmpty()) {
 				return StandardConditions.deny(() -> new RuntimeException("No rights exception"));
 			}
 
