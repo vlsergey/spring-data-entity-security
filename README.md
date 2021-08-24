@@ -7,7 +7,7 @@ Add GitHub package repository to `build.gradle`:
 ```groovy
 repositories {
     maven {
-        url = uri("https://maven.pkg.github.com/vlsergey/spring-data")
+        url = uri("https://maven.pkg.github.com/vlsergey/spring-data-entity-security")
     }
 }
 ```
@@ -15,7 +15,7 @@ repositories {
 Add package as a dependency:
 ```groovy
 dependencies {
-    implementation group: 'io.github.vlsergey', name: 'spring-data-entity-security', version: '0.0.2'
+    implementation group: 'io.github.vlsergey', name: 'spring-data-entity-security', version: '0.0.3'
 }```
 
 
