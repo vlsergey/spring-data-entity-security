@@ -19,7 +19,7 @@ Add package as a dependency:
 
 ```groovy
 dependencies {
-    implementation group: 'com.github.vlsergey', name: 'spring-data-entity-security', version: '0.0.7'
+    implementation group: 'com.github.vlsergey', name: 'spring-data-entity-security', version: '0.0.8'
 }
 ```
 
@@ -41,7 +41,7 @@ Step 2. Add the dependency
     <dependency>
         <groupId>com.github.vlsergey</groupId>
         <artifactId>spring-data-entity-security</artifactId>
-        <version>0.0.7</version>
+        <version>0.0.8</version>
     </dependency>
 ```
 
