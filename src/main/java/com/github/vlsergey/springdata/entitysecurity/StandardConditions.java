@@ -8,6 +8,7 @@ import javax.persistence.criteria.CriteriaQuery;
 import javax.persistence.criteria.CriteriaUpdate;
 import javax.persistence.criteria.Root;
 
+import com.querydsl.core.types.Predicate;
 import com.querydsl.core.types.dsl.Expressions;
 
 import lombok.AllArgsConstructor;
@@ -15,6 +16,25 @@ import lombok.NonNull;
 import lombok.SneakyThrows;
 
 public class StandardConditions {
+
+	@SuppressWarnings("unchecked")
+	public static <T> Condition<T> allow() {
+		return (Condition<T>) AllowCondition.INSTANCE;
+	}
+
+	@SuppressWarnings("unchecked")
+	public static <T> ConditionWithQuerydsl<T> allowWithQuerydsl() {
+		return (ConditionWithQuerydsl<T>) AllowWithQuerydslCondition.INSTANCE_WITH_QUERYDSL;
+	}
+
+	public static <T, E extends Throwable> Condition<T> deny(final @NonNull Supplier<E> checkErrorSupplier) {
+		return new DenyCondition<>(checkErrorSupplier);
+	}
+
+	public static <T, E extends Throwable> ConditionWithQuerydsl<T> denyWithQuerydsl(
+			final @NonNull Supplier<E> checkErrorSupplier) {
+		return new DenyWithQuerydslCondition<>(checkErrorSupplier);
+	}
 
 	private static class AllowCondition<T> implements Condition<T> {
 
@@ -64,6 +84,19 @@ public class StandardConditions {
 				CriteriaBuilder criteriaBuilder) {
 			return null;
 		}
+	}
+
+	private static class AllowWithQuerydslCondition<T> extends AllowCondition<T> implements ConditionWithQuerydsl<T> {
+
+		static final AllowWithQuerydslCondition<Object> INSTANCE_WITH_QUERYDSL = new AllowWithQuerydslCondition<>();
+
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public com.querydsl.core.types.Predicate asPredicate() {
+			return Expressions.TRUE.eq(Boolean.TRUE);
+		}
+
 	}
 
 	@AllArgsConstructor
@@ -120,31 +153,20 @@ public class StandardConditions {
 		}
 	}
 
-	private static class AllowWithQuerydslCondition<T> extends AllowCondition<T> implements ConditionWithQuerydsl<T> {
-
-		static final AllowWithQuerydslCondition<Object> INSTANCE = new AllowWithQuerydslCondition<>();
+	private static class DenyWithQuerydslCondition<T, E extends Throwable> extends DenyCondition<T, E>
+			implements ConditionWithQuerydsl<T> {
 
 		private static final long serialVersionUID = 1L;
 
-		@Override
-		public com.querydsl.core.types.Predicate asPredicate() {
-			return Expressions.TRUE.eq(Boolean.TRUE);
+		public DenyWithQuerydslCondition(final @NonNull Supplier<E> checkErrorSupplier) {
+			super(checkErrorSupplier);
 		}
 
-	}
+		@Override
+		public @NonNull Predicate asPredicate() {
+			return Expressions.TRUE.eq(Boolean.FALSE);
+		}
 
-	@SuppressWarnings("unchecked")
-	public static <T> Condition<T> allow() {
-		return (Condition<T>) AllowCondition.INSTANCE;
-	}
-
-	public static <T, E extends Throwable> Condition<T> deny(Supplier<E> checkErrorSupplier) {
-		return new DenyCondition<>(checkErrorSupplier);
-	}
-
-	@SuppressWarnings("unchecked")
-	public static <T> ConditionWithQuerydsl<T> allowWithQuerydsl() {
-		return (ConditionWithQuerydsl<T>) AllowWithQuerydslCondition.INSTANCE;
 	}
 
 }
