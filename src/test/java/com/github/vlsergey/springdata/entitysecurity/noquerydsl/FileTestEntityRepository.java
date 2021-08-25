@@ -33,7 +33,7 @@ public interface FileTestEntityRepository extends JpaRepository<FileTestEntity, 
 				return StandardConditions.deny(() -> new RuntimeException("No rights exception"));
 			}
 
-			return new Condition<>() {
+			return new Condition<FileTestEntity>() {
 
 				private static final long serialVersionUID = 1L;
 

@@ -36,7 +36,7 @@ public interface OwnedTestEntityRepository
 				return StandardConditions.denyWithQuerydsl(() -> new RuntimeException("No rights exception"));
 			}
 
-			return new ConditionWithQuerydsl<>() {
+			return new ConditionWithQuerydsl<OwnedTestEntity>() {
 
 				private static final long serialVersionUID = 1L;
 
