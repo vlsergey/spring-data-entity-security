@@ -3,27 +3,54 @@ Extension to Spring Data to add security filters to repositories
 
 ## Installation
 
-Add GitHub package repository to `build.gradle`:
-```groovy
+### Gradle
+
+Add the JitPack repository to your `build.gradle`:
+
+```grooxmlvy
 repositories {
     maven {
-        url = uri("https://maven.pkg.github.com/vlsergey/spring-data-entity-security")
+        url = uri("https://jitpack.io")
     }
 }
 ```
 
 Add package as a dependency:
+
 ```groovy
 dependencies {
-    implementation group: 'io.github.vlsergey', name: 'spring-data-entity-security', version: '${version}'
+    implementation group: 'com.github.vlsergey', name: 'spring-data-entity-security', version: '${version}'
 }
 ```
 
+### Maven
+Add the JitPack repository to your build file:
+
+```xml
+    <repositories>
+        <repository>
+            <id>jitpack.io</id>
+            <url>https://jitpack.io</url>
+        </repository>
+    </repositories>
+```
+
+Step 2. Add the dependency
+
+```xml
+    <dependency>
+        <groupId>com.github.vlsergey</groupId>
+        <artifactId>spring-data-entity-security</artifactId>
+        <version>${version}</version>
+    </dependency>
+```
+
+## Usage
 
 Add `repositoryFactoryBeanClass` parameter to your `@EnableJpaRepositories` annotation:
 ```java
 @EnableJpaRepositories(value = "com.mycompany.data",
-    repositoryFactoryBeanClass = io.github.vlsergey.springdata.entitysecurity.SecuredJpaRepositoryFactoryBean.class)
+    repositoryFactoryBeanClass = com.github.vlsergey.springdata.entitysecurity.SecuredJpaRepositoryFactoryBean.class)
 ```
 
 For each repository you want to enforce entity security implement `SecurityMixin` (that describes details of how to build security constrains for each domain entity) and add `@SecuredWith` annotation to repository interface.
