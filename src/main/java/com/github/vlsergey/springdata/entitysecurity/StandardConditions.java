@@ -2,9 +2,9 @@ package com.github.vlsergey.springdata.entitysecurity;
 
 import java.util.function.Supplier;
 
+import javax.persistence.criteria.AbstractQuery;
 import javax.persistence.criteria.CriteriaBuilder;
 import javax.persistence.criteria.CriteriaDelete;
-import javax.persistence.criteria.CriteriaQuery;
 import javax.persistence.criteria.CriteriaUpdate;
 import javax.persistence.criteria.Root;
 
@@ -82,7 +82,7 @@ public class StandardConditions {
 		}
 
 		@Override
-		public javax.persistence.criteria.Predicate toPredicate(Root<T> root, CriteriaQuery<?> query,
+		public javax.persistence.criteria.Predicate toPredicate(Root<T> root, AbstractQuery<?> query,
 				CriteriaBuilder criteriaBuilder) {
 			return null;
 		}
@@ -149,7 +149,7 @@ public class StandardConditions {
 		}
 
 		@Override
-		public javax.persistence.criteria.Predicate toPredicate(Root<T> root, CriteriaQuery<?> query,
+		public javax.persistence.criteria.Predicate toPredicate(Root<T> root, AbstractQuery<?> query,
 				CriteriaBuilder cb) {
 			return cb.equal(cb.literal(Boolean.TRUE), cb.literal(Boolean.FALSE));
 		}

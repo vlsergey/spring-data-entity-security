@@ -14,11 +14,11 @@ import java.util.stream.StreamSupport;
 
 import javax.persistence.EntityManager;
 import javax.persistence.EntityNotFoundException;
+import javax.persistence.TypedQuery;
 import javax.persistence.criteria.CriteriaBuilder;
 import javax.persistence.criteria.CriteriaDelete;
 import javax.persistence.criteria.CriteriaQuery;
 import javax.persistence.criteria.Root;
-import javax.persistence.criteria.Subquery;
 import javax.persistence.metamodel.SingularAttribute;
 
 import org.springframework.data.domain.Example;
@@ -163,13 +163,13 @@ public class SecuredJpaRepository<T, ID> extends SimpleJpaRepository<T, ID> {
 			final CriteriaBuilder cb = entityManager.getCriteriaBuilder();
 			final CriteriaQuery<Boolean> rootQuery = cb.createQuery(Boolean.class);
 
-			final Subquery<Integer> subquery = rootQuery.subquery(Integer.class);
-			subquery.select(cb.literal(1));
-			final Root<T> subFrom = subquery.from(getDomainClass());
-			subquery.where(and(buildIdCondition(id), condition).toPredicate(subFrom, rootQuery, cb));
-			rootQuery.select(cb.exists(subquery));
+			final Root<T> root = rootQuery.from(getDomainClass());
+			rootQuery.select(cb.greaterThan(cb.count(root), cb.literal(0L)));
+			rootQuery.where(buildIdCondition(id).toPredicate(root, rootQuery, cb),
+					condition.toPredicate(root, rootQuery, cb));
 
-			return entityManager.createQuery(rootQuery).getSingleResult();
+			final TypedQuery<Boolean> query = entityManager.createQuery(rootQuery);
+			return query.getResultStream().anyMatch(Boolean::booleanValue);
 		});
 	}
 

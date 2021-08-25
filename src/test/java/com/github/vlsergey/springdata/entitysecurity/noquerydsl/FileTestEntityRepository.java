@@ -1,8 +1,8 @@
 package com.github.vlsergey.springdata.entitysecurity.noquerydsl;
 
+import javax.persistence.criteria.AbstractQuery;
 import javax.persistence.criteria.CriteriaBuilder;
 import javax.persistence.criteria.CriteriaDelete;
-import javax.persistence.criteria.CriteriaQuery;
 import javax.persistence.criteria.CriteriaUpdate;
 import javax.persistence.criteria.Predicate;
 import javax.persistence.criteria.Root;
@@ -39,7 +39,7 @@ public interface FileTestEntityRepository extends JpaRepository<FileTestEntity, 
 				private static final long serialVersionUID = 1L;
 
 				@Override
-				public Predicate toPredicate(Root<FileTestEntity> root, CriteriaQuery<?> query, CriteriaBuilder cb) {
+				public Predicate toPredicate(Root<FileTestEntity> root, AbstractQuery<?> query, CriteriaBuilder cb) {
 					final Predicate allowedByOwner = cb.equal(cb.substring(root.get("permissions"), 0, 1), "r");
 					final Predicate allowedByGroup = cb.equal(cb.substring(root.get("permissions"), 3, 4), "r");
 					final Predicate allowedByOther = cb.equal(cb.substring(root.get("permissions"), 6, 7), "r");

@@ -11,7 +11,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
-import org.springframework.security.authentication.AbstractAuthenticationToken;
+import org.springframework.security.authentication.TestingAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.context.SecurityContextImpl;
 import org.springframework.test.context.ContextConfiguration;
@@ -28,43 +28,57 @@ class RepositoryQueriesTest {
 	@Autowired
 	private TestQueryListener queryListener;
 
-	@BeforeAll
-	static void initSecurityContext() {
-		SecurityContextHolder.setContext(new SecurityContextImpl());
-	}
-
 	@AfterAll
 	static void clearSecurityContext() {
 		SecurityContextHolder.clearContext();
 	}
 
+	@BeforeAll
+	static void initSecurityContext() {
+		SecurityContextHolder.setContext(new SecurityContextImpl());
+	}
+
+	private void assertWhenDoThenQueryMatchesPattern(Runnable runnable, String pattern) {
+		final List<String> queries = queryListener.listen(runnable);
+		assertThat(queries, Matchers.hasSize(1));
+		assertThat(queries.get(0), Matchers.matchesPattern(pattern));
+	}
+
 	@Test
 	void testFindAll() {
-		SecurityContextHolder.getContext().setAuthentication(new AbstractAuthenticationToken(emptyList()) {
+		SecurityContextHolder.getContext()
+				.setAuthentication(new TestingAuthenticationToken("testUser", null, emptyList()));
 
-			private static final long serialVersionUID = 1L;
-
-			@Override
-			public Object getPrincipal() {
-				return "testUser";
-			}
-
-			@Override
-			public Object getCredentials() {
-				return "testUser";
-			}
-		});
-
-		final List<String> queries = queryListener.listen(() -> fileRepository.findAll());
-		assertThat(queries, Matchers.hasSize(1));
-		assertThat(queries.get(0),
-				Matchers.matchesPattern("^select .* " + "from file_test_entity .* " + "cross join user_test_entity .*"
+		assertWhenDoThenQueryMatchesPattern(fileRepository::findAll,
+				"^select .* " + "from file_test_entity .* " + "cross join user_test_entity .*"
 						+ "inner join group_test_entity .* on .*owner_group_gid=.*gid "
 						+ "inner join group_test_entity_users .* on .*gid=.*group_test_entity_gid "
 						+ "inner join user_test_entity .* on .*users_uid=.*uid .*" + "where .*login=\\? and \\("
 						+ "substring\\(.*permissions, 0, 1\\)=\\? and .*owner_user_uid=.*uid or "
 						+ "substring\\(.*permissions, 3, 4\\)=\\? and .*\\(.*uid in \\(.*uid\\)\\) or "
-						+ "substring\\(.*permissions, 6, 7\\)=\\?\\)$"));
+						+ "substring\\(.*permissions, 6, 7\\)=\\?\\)$");
+	}
+
+	@Test
+	void testFindAllUnderRoot() {
+		SecurityContextHolder.getContext().setAuthentication(new TestingAuthenticationToken("root", null, emptyList()));
+
+		assertWhenDoThenQueryMatchesPattern(fileRepository::findAll, "^select .* from file_test_entity [a-z0-9_]+$");
+	}
+
+	@Test
+	void testExistsById() {
+		SecurityContextHolder.getContext()
+				.setAuthentication(new TestingAuthenticationToken("testUser", null, emptyList()));
+
+		assertWhenDoThenQueryMatchesPattern(() -> fileRepository.existsById("testFile"),
+				"^select count\\(.*path\\)>0 as .* from file_test_entity .* " + "cross join user_test_entity .*"
+						+ "inner join group_test_entity .* on .*owner_group_gid=.*gid "
+						+ "inner join group_test_entity_users .* on .*gid=.*group_test_entity_gid "
+						+ "inner join user_test_entity .* on .*users_uid=.*uid .*" + "where .*login=\\? and \\("
+						+ "substring\\(.*permissions, 0, 1\\)=\\? and .*owner_user_uid=.*uid or "
+						+ "substring\\(.*permissions, 3, 4\\)=\\? and .*\\(.*uid in \\(.*uid\\)\\) or "
+						+ "substring\\(.*permissions, 6, 7\\)=\\?\\)$");
 	}
 
 }

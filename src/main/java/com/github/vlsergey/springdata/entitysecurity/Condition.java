@@ -1,7 +1,9 @@
 package com.github.vlsergey.springdata.entitysecurity;
 
+import javax.persistence.criteria.AbstractQuery;
 import javax.persistence.criteria.CriteriaBuilder;
 import javax.persistence.criteria.CriteriaDelete;
+import javax.persistence.criteria.CriteriaQuery;
 import javax.persistence.criteria.CriteriaUpdate;
 import javax.persistence.criteria.Predicate;
 import javax.persistence.criteria.Root;
@@ -35,7 +37,15 @@ public interface Condition<T> extends Specification<T> {
 	}
 
 	@Nullable
+	Predicate toPredicate(Root<T> root, AbstractQuery<?> query, CriteriaBuilder cb);
+
+	@Nullable
 	Predicate toPredicate(Root<T> root, CriteriaDelete<?> query, CriteriaBuilder cb);
+
+	@Override
+	default Predicate toPredicate(Root<T> root, CriteriaQuery<?> cq, CriteriaBuilder cb) {
+		return toPredicate(root, (AbstractQuery<?>) cq, cb);
+	}
 
 	@Nullable
 	Predicate toPredicate(Root<T> root, CriteriaUpdate<?> query, CriteriaBuilder cb);
