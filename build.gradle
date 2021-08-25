@@ -13,17 +13,29 @@ ext {
 }
 
 compileJava {
+	sourceCompatibility = JavaVersion.VERSION_1_8
+	targetCompatibility = JavaVersion.VERSION_1_8
+
+	if (JavaVersion.current().isJava11Compatible()) {
+		options.release = 8
+	}
+
 	options.compilerArgs << '-parameters'
 	options.debugOptions.debugLevel = "source,lines,vars"
 	options.encoding = 'UTF-8'
-	options.release = 8
 }
 
 compileTestJava {
+	sourceCompatibility = JavaVersion.VERSION_1_8
+	targetCompatibility = JavaVersion.VERSION_1_8
+
+	if (JavaVersion.current().isJava11Compatible()) {
+		options.release = 8
+	}
+
 	options.compilerArgs << '-parameters'
 	options.debugOptions.debugLevel = "source,lines,vars"
 	options.encoding = 'UTF-8'
-	options.release = 11
 }
 
 repositories {
