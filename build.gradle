@@ -54,6 +54,8 @@ dependencies {
 	testAnnotationProcessor("com.querydsl:querydsl-apt:${queryDslVersion}:jpa")
 	testAnnotationProcessor group: 'javax.annotation', name: 'javax.annotation-api', version: '1.3.2'
 
+	testCompileOnly group: 'javax.annotation', name: 'javax.annotation-api', version: '1.3.2'
+
 	testImplementation group: 'ch.qos.logback', name: 'logback-classic', version: '1.2.3'
 	testImplementation group: 'com.github.gavlyukovskiy', name: 'datasource-decorator-spring-boot-autoconfigure', version: '1.7.1'
 	testImplementation group: 'com.querydsl', name: 'querydsl-jpa', version: queryDslVersion

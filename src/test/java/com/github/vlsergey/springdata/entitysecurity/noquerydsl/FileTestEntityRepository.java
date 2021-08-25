@@ -1,11 +1,10 @@
 package com.github.vlsergey.springdata.entitysecurity.noquerydsl;
 
-import javax.persistence.criteria.AbstractQuery;
+import javax.persistence.criteria.CommonAbstractCriteria;
 import javax.persistence.criteria.CriteriaBuilder;
-import javax.persistence.criteria.CriteriaDelete;
-import javax.persistence.criteria.CriteriaUpdate;
 import javax.persistence.criteria.Predicate;
 import javax.persistence.criteria.Root;
+import javax.persistence.criteria.Subquery;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -34,40 +33,12 @@ public interface FileTestEntityRepository extends JpaRepository<FileTestEntity, 
 				return StandardConditions.deny(() -> new RuntimeException("No rights exception"));
 			}
 
-			return new Condition<FileTestEntity>() {
+			return new Condition<>() {
 
 				private static final long serialVersionUID = 1L;
 
 				@Override
-				public Predicate toPredicate(Root<FileTestEntity> root, AbstractQuery<?> query, CriteriaBuilder cb) {
-					final Predicate allowedByOwner = cb.equal(cb.substring(root.get("permissions"), 0, 1), "r");
-					final Predicate allowedByGroup = cb.equal(cb.substring(root.get("permissions"), 3, 4), "r");
-					final Predicate allowedByOther = cb.equal(cb.substring(root.get("permissions"), 6, 7), "r");
-
-					final Root<UserTestEntity> currentUser = query.from(UserTestEntity.class);
-
-					final Predicate currentIsOwner = cb.equal(root.get("ownerUser"), currentUser);
-					final Predicate currentUserInOwnerGroup = currentUser.in(root.join("ownerGroup").join("users"));
-
-					return cb.and(cb.equal(currentUser.get("login"), login),
-							cb.or(cb.and(allowedByOwner, currentIsOwner),
-									cb.and(allowedByGroup, currentUserInOwnerGroup), allowedByOther));
-				}
-
-				@Override
-				public Predicate toPredicate(Root<FileTestEntity> root, CriteriaUpdate<?> query,
-						CriteriaBuilder criteriaBuilder) {
-					throw new UnsupportedOperationException("not used in test cases");
-				}
-
-				@Override
-				public Predicate toPredicate(Root<FileTestEntity> root, CriteriaDelete<?> query,
-						CriteriaBuilder criteriaBuilder) {
-					throw new UnsupportedOperationException("not used in test cases");
-				}
-
-				@Override
-				public void checkEntityUpdate(@NonNull FileTestEntity entity) {
+				public void checkEntityDelete(@NonNull FileTestEntity entity) {
 					throw new UnsupportedOperationException("not used in test cases");
 				}
 
@@ -77,9 +48,33 @@ public interface FileTestEntityRepository extends JpaRepository<FileTestEntity, 
 				}
 
 				@Override
-				public void checkEntityDelete(@NonNull FileTestEntity entity) {
+				public void checkEntityUpdate(@NonNull FileTestEntity entity) {
 					throw new UnsupportedOperationException("not used in test cases");
 				}
+
+				@Override
+				public Predicate toPredicate(@NonNull Root<FileTestEntity> root, @NonNull CommonAbstractCriteria query,
+						@NonNull CriteriaBuilder cb) {
+
+					final Subquery<Integer> subquery = query.subquery(Integer.class);
+					subquery.select(cb.literal(1));
+
+					final Predicate allowedByOwner = cb.equal(cb.substring(root.get("permissions"), 0, 1), "r");
+					final Predicate allowedByGroup = cb.equal(cb.substring(root.get("permissions"), 3, 4), "r");
+					final Predicate allowedByOther = cb.equal(cb.substring(root.get("permissions"), 6, 7), "r");
+
+					final Root<UserTestEntity> currentUser = subquery.from(UserTestEntity.class);
+
+					final Predicate currentIsOwner = cb.equal(root.get("ownerUser"), currentUser);
+					final Predicate currentUserInOwnerGroup = root.get("ownerGroup").in(currentUser.join("groups"));
+
+					subquery.where(cb.and(cb.equal(currentUser.get("login"), login)),
+							cb.or(cb.and(allowedByOwner, currentIsOwner),
+									cb.and(allowedByGroup, currentUserInOwnerGroup), allowedByOther));
+
+					return cb.exists(subquery);
+				}
+
 			};
 		}
 

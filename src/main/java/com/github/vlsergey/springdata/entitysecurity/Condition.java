@@ -1,6 +1,7 @@
 package com.github.vlsergey.springdata.entitysecurity;
 
-import javax.persistence.criteria.AbstractQuery;
+import javax.annotation.concurrent.NotThreadSafe;
+import javax.persistence.criteria.CommonAbstractCriteria;
 import javax.persistence.criteria.CriteriaBuilder;
 import javax.persistence.criteria.CriteriaDelete;
 import javax.persistence.criteria.CriteriaQuery;
@@ -11,6 +12,9 @@ import javax.persistence.criteria.Root;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.lang.Nullable;
 
+import lombok.NonNull;
+
+@NotThreadSafe
 public interface Condition<T> extends Specification<T> {
 
 	/**
@@ -28,26 +32,43 @@ public interface Condition<T> extends Specification<T> {
 	 */
 	void checkEntityUpdate(@lombok.NonNull @org.springframework.lang.NonNull T entity);
 
+	/**
+	 * It's safe to return {@literal false} here, but returning {@literal true} will
+	 * optimize execution in some cases
+	 */
 	default boolean isAlwaysFalse() {
 		return false;
 	}
 
+	/**
+	 * It's safe to return {@literal false} here, but returning {@literal true} will
+	 * optimize execution in some cases
+	 */
 	default boolean isAlwaysTrue() {
 		return false;
 	}
 
+	/**
+	 * Creates a WHERE clause for filtering entities. Should not add additional
+	 * tables to main query (but may create subqueries via
+	 * {@link CommonAbstractCriteria#subquery(Class)}).
+	 * 
+	 * @param root            must not be {@literal null}.
+	 * @param cac             The appropriate {@link CriteriaQuery},
+	 *                        {@link CriteriaDelete} or {@link CriteriaUpdate}. Do
+	 *                        not cast&call <tt>from</tt> methods on this argument,
+	 *                        because it will add table to root query. Create
+	 *                        subquery instead.
+	 * @param criteriaBuilder must not be {@literal null}.
+	 */
 	@Nullable
-	Predicate toPredicate(Root<T> root, AbstractQuery<?> query, CriteriaBuilder cb);
-
-	@Nullable
-	Predicate toPredicate(Root<T> root, CriteriaDelete<?> query, CriteriaBuilder cb);
+	Predicate toPredicate(final @NonNull Root<T> root, final @NonNull CommonAbstractCriteria cac,
+			final @NonNull CriteriaBuilder cb);
 
 	@Override
-	default Predicate toPredicate(Root<T> root, CriteriaQuery<?> cq, CriteriaBuilder cb) {
-		return toPredicate(root, (AbstractQuery<?>) cq, cb);
+	default Predicate toPredicate(final @NonNull Root<T> root, final @NonNull CriteriaQuery<?> cq,
+			final @NonNull CriteriaBuilder cb) {
+		return toPredicate(root, (CommonAbstractCriteria) cq, cb);
 	}
-
-	@Nullable
-	Predicate toPredicate(Root<T> root, CriteriaUpdate<?> query, CriteriaBuilder cb);
 
 }

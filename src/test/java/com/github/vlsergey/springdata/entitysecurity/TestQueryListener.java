@@ -20,7 +20,9 @@ public class TestQueryListener implements QueryExecutionListener {
 
 	@Override
 	public void afterQuery(ExecutionInfo execInfo, List<QueryInfo> queryInfoList) {
-		queryInfoList.forEach(qi -> queryListeners.forEach(listener -> listener.accept(qi.getQuery())));
+		queryInfoList.forEach(qi -> queryListeners.forEach(listener -> {
+			listener.accept(qi.getQuery());
+		}));
 	}
 
 	public List<String> listen(Runnable runnable) {

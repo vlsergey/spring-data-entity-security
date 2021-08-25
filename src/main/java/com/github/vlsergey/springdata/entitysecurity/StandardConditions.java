@@ -2,10 +2,8 @@ package com.github.vlsergey.springdata.entitysecurity;
 
 import java.util.function.Supplier;
 
-import javax.persistence.criteria.AbstractQuery;
+import javax.persistence.criteria.CommonAbstractCriteria;
 import javax.persistence.criteria.CriteriaBuilder;
-import javax.persistence.criteria.CriteriaDelete;
-import javax.persistence.criteria.CriteriaUpdate;
 import javax.persistence.criteria.Root;
 
 import com.querydsl.core.types.Predicate;
@@ -76,22 +74,11 @@ public class StandardConditions {
 		}
 
 		@Override
-		public javax.persistence.criteria.Predicate toPredicate(Root<T> root, CriteriaDelete<?> query,
-				CriteriaBuilder criteriaBuilder) {
+		public javax.persistence.criteria.Predicate toPredicate(@NonNull Root<T> root,
+				@NonNull CommonAbstractCriteria cac, @NonNull CriteriaBuilder cb) {
 			return null;
 		}
 
-		@Override
-		public javax.persistence.criteria.Predicate toPredicate(Root<T> root, AbstractQuery<?> query,
-				CriteriaBuilder criteriaBuilder) {
-			return null;
-		}
-
-		@Override
-		public javax.persistence.criteria.Predicate toPredicate(Root<T> root, CriteriaUpdate<?> query,
-				CriteriaBuilder criteriaBuilder) {
-			return null;
-		}
 	}
 
 	private static class AllowWithQuerydslCondition<T> extends AllowCondition<T> implements ConditionWithQuerydsl<T> {
@@ -143,22 +130,11 @@ public class StandardConditions {
 		}
 
 		@Override
-		public javax.persistence.criteria.Predicate toPredicate(Root<T> root, CriteriaDelete<?> query,
-				CriteriaBuilder cb) {
+		public javax.persistence.criteria.Predicate toPredicate(@NonNull Root<T> root,
+				@NonNull CommonAbstractCriteria cac, @NonNull CriteriaBuilder cb) {
 			return cb.equal(cb.literal(Boolean.TRUE), cb.literal(Boolean.FALSE));
 		}
 
-		@Override
-		public javax.persistence.criteria.Predicate toPredicate(Root<T> root, AbstractQuery<?> query,
-				CriteriaBuilder cb) {
-			return cb.equal(cb.literal(Boolean.TRUE), cb.literal(Boolean.FALSE));
-		}
-
-		@Override
-		public javax.persistence.criteria.Predicate toPredicate(Root<T> root, CriteriaUpdate<?> query,
-				CriteriaBuilder cb) {
-			return cb.equal(cb.literal(Boolean.TRUE), cb.literal(Boolean.FALSE));
-		}
 	}
 
 	private static class DenyWithQuerydslCondition<T, E extends Throwable> extends DenyCondition<T, E>
