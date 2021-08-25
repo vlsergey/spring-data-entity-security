@@ -1,5 +1,18 @@
 # spring-data-entity-security
+[![](https://jitpack.io/v/vlsergey/spring-data-entity-security.svg)](https://jitpack.io/#vlsergey/spring-data-entity-security)
 Extension to Spring Data to add security filters to repositories
+
+- ✨ Adds security conditions to all standard JPA methods from JpaRepository and JpaSpecificationExecutor
+- ✨ Also adds conditions to QuerydslPredicateExecutor is querydsl is enabled for repository
+- ✨ Injects security conditions into queries generated from user-specific methods in JpaRepository (like `findBySomeField`)
+
+
+- 🚧 find-by-example is not implemented (will throw `UnsupportedOperationException`)
+- 🚧 Compound IDs will not work for all operations
+
+Examples and test-cases:
+* [Simple entity with `owner` field, but `root` is allowed to see all entities](https://github.com/vlsergey/spring-data-entity-security/tree/master/src/test/java/com/github/vlsergey/springdata/entitysecurity/owned)
+* [File-alike permission check with owner user and group](https://github.com/vlsergey/spring-data-entity-security/tree/master/src/test/java/com/github/vlsergey/springdata/entitysecurity/noquerydsl)
 
 ## Installation
 
@@ -19,7 +32,7 @@ Add package as a dependency:
 
 ```groovy
 dependencies {
-    implementation group: 'com.github.vlsergey', name: 'spring-data-entity-security', version: '0.0.8'
+    implementation group: 'com.github.vlsergey', name: 'spring-data-entity-security', version: '0.1.0'
 }
 ```
 
@@ -41,7 +54,7 @@ Step 2. Add the dependency
     <dependency>
         <groupId>com.github.vlsergey</groupId>
         <artifactId>spring-data-entity-security</artifactId>
-        <version>0.0.8</version>
+        <version>0.1.0</version>
     </dependency>
 ```
 
