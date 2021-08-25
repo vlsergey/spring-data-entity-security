@@ -27,6 +27,14 @@ public class StandardConditions {
 		return (ConditionWithQuerydsl<T>) AllowWithQuerydslCondition.INSTANCE_WITH_QUERYDSL;
 	}
 
+	public static <T> SecurityMixin<T> alwaysAllowSecurityMixin() {
+		return StandardConditions::allow;
+	}
+
+	public static <T> SecurityMixinWithQuerydsl<T> alwaysAllowSecurityMixinWithQuerydsl() {
+		return StandardConditions::allowWithQuerydsl;
+	}
+
 	public static <T, E extends Throwable> Condition<T> deny(final @NonNull Supplier<E> checkErrorSupplier) {
 		return new DenyCondition<>(checkErrorSupplier);
 	}

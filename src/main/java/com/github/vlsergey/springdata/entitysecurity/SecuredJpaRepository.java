@@ -31,29 +31,33 @@ import org.springframework.data.jpa.repository.support.SimpleJpaRepository;
 import org.springframework.lang.Nullable;
 import org.springframework.transaction.annotation.Transactional;
 
+import lombok.AccessLevel;
 import lombok.NonNull;
+import lombok.Setter;
 
-public class SecuredJpaRepository<T, ID> extends SimpleJpaRepository<T, ID> implements SecuredJpaRepositoryImpl<T> {
+public class SecuredJpaRepository<T, ID> extends SimpleJpaRepository<T, ID> {
 
 	private static final String UOE_MESSAGE_BY_EXAMPLE = "by-example methods are not supported by SecuredJpaRepository";
 
 	private static final String UOE_MESSAGE_NON_SINGULAR_ID = "Repositories without singlular ID attribute are not supported yet";
 
-	@Nullable
-	protected final static <T> Specification<T> and(@Nullable Specification<T> a, @Nullable Specification<T> b) {
-		return a == null ? b : a.and(b);
-	}
-
 	private final @NonNull JpaEntityInformation<T, ?> entityInformation;
 
 	private final @NonNull EntityManager entityManager;
 
+	@Setter(AccessLevel.PACKAGE)
 	private @NonNull SecurityMixin<T> securityMixin;
 
-	public SecuredJpaRepository(JpaEntityInformation<T, ?> entityInformation, EntityManager entityManager) {
+	public SecuredJpaRepository(final @NonNull JpaEntityInformation<T, ?> entityInformation,
+			final @NonNull EntityManager entityManager) {
 		super(entityInformation, entityManager);
 		this.entityInformation = entityInformation;
 		this.entityManager = entityManager;
+	}
+
+	@Nullable
+	protected final static <T> Specification<T> and(@Nullable Specification<T> a, @Nullable Specification<T> b) {
+		return a == null ? b : a.and(b);
 	}
 
 	private @NonNull Specification<T> buildIdCondition(ID id) {
@@ -283,11 +287,6 @@ public class SecuredJpaRepository<T, ID> extends SimpleJpaRepository<T, ID> impl
 		final Condition<T> condition = securityMixin.buildCondition();
 		entities.forEach(entity -> this.checkSave(condition, entity));
 		return super.saveAllAndFlush(entities);
-	}
-
-	@Override
-	public void setSecurityMixin(@NonNull SecurityMixin<T> securityMixin) {
-		this.securityMixin = securityMixin;
 	}
 
 	protected <R> R switchByCondition(final @NonNull Supplier<R> alwaysFalse, final @NonNull Supplier<R> alwaysTrue,
