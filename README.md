@@ -3,18 +3,24 @@
 Extension to Spring Data to add security filters to repositories
 
 - ✨ Adds security conditions to all standard JPA methods from JpaRepository and JpaSpecificationExecutor
-- ✨ Also adds conditions to QuerydslPredicateExecutor is querydsl is enabled for repository
+- ✨ Also adds conditions to QuerydslPredicateExecutor if querydsl is enabled for the repository
 - ✨ Injects security conditions into queries generated from user-specific methods in JpaRepository (like `findBySomeField`)
 
 
-- 🚧 find-by-example is not implemented (will throw `UnsupportedOperationException`)
+- 🚧 Find-by-example is not implemented (will throw `UnsupportedOperationException`)
 - 🚧 Compound IDs will not work for all operations
+
+
+- ⚠️ Only methods of JPA repository are affected. Thus, any code working with JPA `EntityManager` will not be affected.
+- ⚠️ Also, any links from one entity to another (`@OneToOne`, `@ManyToOne`, `@OneToMany`, `@ManyToMany`) are not affected. The code will receive entities without security filtering using such link methods.  
 
 Examples and test-cases:
 * [Simple entity with `owner` field, but `root` is allowed to see all entities](https://github.com/vlsergey/spring-data-entity-security/tree/master/src/test/java/com/github/vlsergey/springdata/entitysecurity/owned)
 * [File-alike permission check with owner user and group](https://github.com/vlsergey/spring-data-entity-security/tree/master/src/test/java/com/github/vlsergey/springdata/entitysecurity/noquerydsl)
 
 ## Installation
+
+_Important:_ version 2.5.0+ of `spring-data-jpa` is required (due to changes in `JpaRepositoryFactory`).
 
 ### Gradle
 

@@ -11,7 +11,7 @@ Extension to Spring Data to add security filters to repositories
 - 🚧 Compound IDs will not work for all operations
 
 
-- ⚠️ Only direct work with JPA repository is affected. Thus, any code working with EntityRepository will not be affected.
+- ⚠️ Only methods of JPA repository are affected. Thus, any code working with JPA `EntityManager` will not be affected.
 - ⚠️ Also, any links from one entity to another (`@OneToOne`, `@ManyToOne`, `@OneToMany`, `@ManyToMany`) are not affected. The code will receive entities without security filtering using such link methods.  
 
 Examples and test-cases:
@@ -19,6 +19,8 @@ Examples and test-cases:
 * [File-alike permission check with owner user and group](https://github.com/vlsergey/spring-data-entity-security/tree/master/src/test/java/com/github/vlsergey/springdata/entitysecurity/noquerydsl)
 
 ## Installation
+
+_Important:_ version 2.5.0+ of `spring-data-jpa` is required (due to changes in `JpaRepositoryFactory`).
 
 ### Gradle
 
