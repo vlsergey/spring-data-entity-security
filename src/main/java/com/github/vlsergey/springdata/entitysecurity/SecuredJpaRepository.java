@@ -8,6 +8,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.StreamSupport;
@@ -118,16 +119,6 @@ public class SecuredJpaRepository<T, ID> extends SimpleJpaRepository<T, ID> {
 	}
 
 	@Override
-	public void deleteAll(Iterable<? extends T> entities) {
-		throw new UnsupportedOperationException("NYI");
-	}
-
-	@Override
-	public void deleteAllById(Iterable<? extends ID> ids) {
-		throw new UnsupportedOperationException("NYI");
-	}
-
-	@Override
 	public void deleteAllByIdInBatch(Iterable<ID> ids) {
 		throw new UnsupportedOperationException("NYI");
 	}
@@ -143,8 +134,14 @@ public class SecuredJpaRepository<T, ID> extends SimpleJpaRepository<T, ID> {
 	}
 
 	@Override
-	public void deleteById(ID id) {
-		throw new UnsupportedOperationException("NYI");
+	public void deleteById(final @NonNull ID id) {
+		switchByConditionVoid(() -> {
+			throw new EntityNotFoundException();
+		}, () -> super.deleteById(id), (condition) -> {
+			T entity = getById(id);
+			condition.checkEntityDelete(entity);
+			super.delete(entity);
+		});
 	}
 
 	@Override
@@ -255,7 +252,7 @@ public class SecuredJpaRepository<T, ID> extends SimpleJpaRepository<T, ID> {
 
 	@Override
 	public T getById(ID id) {
-		return findById(id).get();
+		return findById(id).orElseThrow(EntityNotFoundException::new);
 	}
 
 	@Override
@@ -294,10 +291,22 @@ public class SecuredJpaRepository<T, ID> extends SimpleJpaRepository<T, ID> {
 		final Condition<T> condition = securityMixin.buildCondition();
 		if (condition.isAlwaysTrue()) {
 			return alwaysTrue.get();
-		}
-		if (condition.isAlwaysFalse()) {
+		} else if (condition.isAlwaysFalse()) {
 			return alwaysFalse.get();
+		} else {
+			return other.apply(condition);
 		}
-		return other.apply(condition);
+	}
+
+	protected void switchByConditionVoid(final @NonNull Runnable alwaysFalse, final @NonNull Runnable alwaysTrue,
+			final @NonNull Consumer<Condition<T>> other) {
+		final Condition<T> condition = securityMixin.buildCondition();
+		if (condition.isAlwaysTrue()) {
+			alwaysTrue.run();
+		} else if (condition.isAlwaysFalse()) {
+			alwaysFalse.run();
+		} else {
+			other.accept(condition);
+		}
 	}
 }
