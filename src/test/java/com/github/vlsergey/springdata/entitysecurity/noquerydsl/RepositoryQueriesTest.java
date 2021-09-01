@@ -71,8 +71,7 @@ class RepositoryQueriesTest {
 				.setAuthentication(new TestingAuthenticationToken("testUser", null, emptyList()));
 
 		assertWhenDoThenQueryMatchesPattern(() -> fileRepository.existsById("testFile"),
-				"^select count\\(.*path\\)>0 as .* from file_test_entity .* where .*path=\\? and \\(exists \\("
-						+ "select 1 "
+				"^select 1 as .* from file_test_entity .* where .*path=\\? and \\(exists \\(" + "select 1 "
 						+ "from user_test_entity .* inner join user_test_entity_groups .* on .*uid=.*user_test_entity_uid "
 						+ "inner join group_test_entity .* on .*groups_gid=.*gid "
 						+ "where .*login=\\? and \\(substring\\(.*permissions, 0, 1\\)=\\? and .*owner_user_uid=.*uid or "

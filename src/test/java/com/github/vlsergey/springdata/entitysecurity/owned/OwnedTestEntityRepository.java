@@ -13,6 +13,7 @@ import org.springframework.data.querydsl.QuerydslPredicateExecutor;
 import org.springframework.security.core.context.SecurityContextHolder;
 
 import com.github.vlsergey.springdata.entitysecurity.ConditionWithQuerydsl;
+import com.github.vlsergey.springdata.entitysecurity.QueryType;
 import com.github.vlsergey.springdata.entitysecurity.SecuredWith;
 import com.github.vlsergey.springdata.entitysecurity.SecurityMixinWithQuerydsl;
 import com.github.vlsergey.springdata.entitysecurity.StandardConditions;
@@ -23,10 +24,11 @@ import lombok.NonNull;
 public interface OwnedTestEntityRepository
 		extends JpaRepository<OwnedTestEntity, UUID>, QuerydslPredicateExecutor<OwnedTestEntity> {
 
-	class OwnedTestEntitySecurityMixin implements SecurityMixinWithQuerydsl<OwnedTestEntity> {
+	class OwnedTestEntitySecurityMixin
+			implements SecurityMixinWithQuerydsl<OwnedTestEntity, OwnedTestEntityRepository> {
 
 		@Override
-		public ConditionWithQuerydsl<OwnedTestEntity> buildCondition() {
+		public ConditionWithQuerydsl<OwnedTestEntity, OwnedTestEntityRepository> buildCondition() {
 			final String login = SecurityContextHolder.getContext().getAuthentication().getName();
 
 			if (login.equals("root")) {
@@ -36,9 +38,7 @@ public interface OwnedTestEntityRepository
 				return StandardConditions.denyWithQuerydsl(() -> new RuntimeException("No rights exception"));
 			}
 
-			return new ConditionWithQuerydsl<OwnedTestEntity>() {
-
-				private static final long serialVersionUID = 1L;
+			return new ConditionWithQuerydsl<OwnedTestEntity, OwnedTestEntityRepository>() {
 
 				@Override
 				public com.querydsl.core.types.@NonNull Predicate asPredicate() {
@@ -46,27 +46,24 @@ public interface OwnedTestEntityRepository
 				}
 
 				@Override
+				public void checkEntityInsert(@NonNull OwnedTestEntityRepository repository,
+						@NonNull OwnedTestEntity entity) {
+					throw new UnsupportedOperationException("not used in test cases");
+				}
+
+				@Override
 				public Predicate toPredicate(@NonNull Root<OwnedTestEntity> root, @NonNull CommonAbstractCriteria cac,
-						@NonNull CriteriaBuilder cb) {
+						@NonNull CriteriaBuilder cb, QueryType queryType) {
 
 					return cb.equal(root.get("owner"), login);
 				}
 
-				@Override
-				public void checkEntityUpdate(@NonNull OwnedTestEntity entity) {
-					throw new UnsupportedOperationException("not used in test cases");
-				}
-
-				@Override
-				public void checkEntityInsert(@NonNull OwnedTestEntity entity) {
-					throw new UnsupportedOperationException("not used in test cases");
-				}
-
-				@Override
-				public void checkEntityDelete(@NonNull OwnedTestEntity entity) {
-					throw new UnsupportedOperationException("not used in test cases");
-				}
 			};
+		}
+
+		@Override
+		public void onForbiddenUpdate(OwnedTestEntity entity) {
+			throw new UnsupportedOperationException("not used in test cases");
 		}
 	}
 

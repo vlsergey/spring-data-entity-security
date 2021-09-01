@@ -67,7 +67,7 @@ class OwnedEntityTest {
 				.setAuthentication(new TestingAuthenticationToken("testUser", null, emptyList()));
 
 		assertWhenDoThenQueryMatchesPattern(() -> testRepository.existsById(UUID.randomUUID()),
-				"^select count\\(.*id\\)>0 as .* from owned_test_entity .* where .*id=\\? and .*owner=\\?$");
+				"^select 1 as .* from owned_test_entity .* where .*id=\\? and .*owner=\\?$");
 	}
 
 	@Test

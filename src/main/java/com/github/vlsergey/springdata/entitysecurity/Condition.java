@@ -10,27 +10,19 @@ import javax.persistence.criteria.Predicate;
 import javax.persistence.criteria.Root;
 
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.lang.Nullable;
 
 import lombok.NonNull;
 
 @NotThreadSafe
-public interface Condition<T> extends Specification<T> {
+public interface Condition<T, R extends JpaRepository<T, ?>> {
 
 	/**
 	 * Throw an error if operation is not allowed for specified entity
 	 */
-	void checkEntityDelete(@lombok.NonNull @org.springframework.lang.NonNull T entity);
-
-	/**
-	 * Throw an error if operation is not allowed for specified entity
-	 */
-	void checkEntityInsert(@lombok.NonNull @org.springframework.lang.NonNull T entity);
-
-	/**
-	 * Throw an error if operation is not allowed for specified entity
-	 */
-	void checkEntityUpdate(@lombok.NonNull @org.springframework.lang.NonNull T entity);
+	void checkEntityInsert(@lombok.NonNull @org.springframework.lang.NonNull R repository,
+			@lombok.NonNull @org.springframework.lang.NonNull T entity);
 
 	/**
 	 * It's safe to return {@literal false} here, but returning {@literal true} will
@@ -63,12 +55,9 @@ public interface Condition<T> extends Specification<T> {
 	 */
 	@Nullable
 	Predicate toPredicate(final @NonNull Root<T> root, final @NonNull CommonAbstractCriteria cac,
-			final @NonNull CriteriaBuilder cb);
+			final @NonNull CriteriaBuilder cb, QueryType queryType);
 
-	@Override
-	default Predicate toPredicate(final @NonNull Root<T> root, final @NonNull CriteriaQuery<?> cq,
-			final @NonNull CriteriaBuilder cb) {
-		return toPredicate(root, (CommonAbstractCriteria) cq, cb);
+	default Specification<T> toSpecification(final @NonNull QueryType queryType) {
+		return (root, cq, cb) -> toPredicate(root, cq, cb, queryType);
 	}
-
 }

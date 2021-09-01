@@ -2,6 +2,7 @@ package com.github.vlsergey.springdata.entitysecurity;
 
 import static org.springframework.data.querydsl.QuerydslUtils.QUERY_DSL_PRESENT;
 
+import java.io.Serializable;
 import java.util.Optional;
 
 import javax.persistence.EntityManager;
@@ -9,6 +10,7 @@ import javax.persistence.EntityManager;
 import org.springframework.beans.BeanUtils;
 import org.springframework.dao.InvalidDataAccessApiUsageException;
 import org.springframework.data.jpa.provider.PersistenceProvider;
+import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.query.DefaultJpaQueryMethodFactory;
 import org.springframework.data.jpa.repository.query.EscapeCharacter;
 import org.springframework.data.jpa.repository.query.JpaQueryLookupStrategy;
@@ -59,7 +61,7 @@ public class SecuredJpaRepositoryFactory extends JpaRepositoryFactory {
 	protected Optional<QueryLookupStrategy> getQueryLookupStrategy(Key key,
 			QueryMethodEvaluationContextProvider evaluationContextProvider) {
 		final Class<?> repositoryInterface = currentlyProcessedRepositoryInterface.get();
-		final SecurityMixin<?> securityMixin = getSecurityMixin(repositoryInterface);
+		final SecurityMixin<?, ?> securityMixin = getSecurityMixin(repositoryInterface);
 
 		return Optional.of(JpaQueryLookupStrategy.create(EntityManagerWrapperFactory.wrap(entityManager, securityMixin),
 				queryMethodFactory, key, evaluationContextProvider, escapeCharacter));
@@ -81,7 +83,7 @@ public class SecuredJpaRepositoryFactory extends JpaRepositoryFactory {
 			return super.getRepositoryFragments(metadata, entityManager, resolver, crudMethodMetadata);
 		}
 
-		final SecurityMixin<?> securityMixin = securedWith.value().getDeclaredConstructor().newInstance();
+		final SecurityMixin<?, ?> securityMixin = securedWith.value().getDeclaredConstructor().newInstance();
 
 		boolean isQueryDslRepository = QUERY_DSL_PRESENT
 				&& QuerydslPredicateExecutor.class.isAssignableFrom(metadata.getRepositoryInterface());
@@ -93,13 +95,13 @@ public class SecuredJpaRepositoryFactory extends JpaRepositoryFactory {
 						"Cannot combine Querydsl and reactive repository support in a single interface");
 			}
 
-			if (!(securityMixin instanceof SecurityMixinWithQuerydsl<?>)) {
+			if (!(securityMixin instanceof SecurityMixinWithQuerydsl<?, ?>)) {
 				throw new InvalidDataAccessApiUsageException("SecurityMixin class (" + securedWith.value().getName()
 						+ ") must implement SecurityMixinWithQuerydsl interface if repository is Querydsl one");
 			}
 
 			return RepositoryFragments.just(newExecutor(metadata, entityManager, resolver, crudMethodMetadata,
-					(SecurityMixinWithQuerydsl<?>) securityMixin));
+					(SecurityMixinWithQuerydsl<?, ?>) securityMixin));
 		}
 
 		return RepositoryFragments.empty();
@@ -107,13 +109,14 @@ public class SecuredJpaRepositoryFactory extends JpaRepositoryFactory {
 
 	// TODO: cache to use 1 instance per repository
 	@SuppressWarnings("unchecked")
-	private <T> SecurityMixin<T> getSecurityMixin(Class<?> repositoryInterface) {
+	private <T, R extends JpaRepository<T, ? extends Serializable>> SecurityMixin<T, R> getSecurityMixin(
+			Class<?> repositoryInterface) {
 		return Optional.ofNullable(repositoryInterface.getAnnotation(SecuredWith.class)) //
 				.map(SecuredWith::value) //
-				.map(cls -> (Class<SecurityMixin<T>>) cls) //
+				.map(cls -> (Class<SecurityMixin<T, R>>) cls) //
 				.map(BeanUtils::instantiateClass) //
 				.orElseGet(() -> QuerydslPredicateExecutor.class.isAssignableFrom(repositoryInterface)
-						? StandardConditions.alwaysAllowSecurityMixinWithQuerydsl()
+						? (SecurityMixin<T, R>) StandardConditions.alwaysAllowSecurityMixinWithQuerydsl()
 						: StandardConditions.alwaysAllowSecurityMixin());
 	}
 
@@ -124,9 +127,9 @@ public class SecuredJpaRepositoryFactory extends JpaRepositoryFactory {
 			EntityManager entityManager) {
 		final JpaRepositoryImplementation<?, ?> repository = super.getTargetRepository(information, entityManager);
 
-		if (repository instanceof SecuredJpaRepository<?, ?>) {
-			final SecuredJpaRepository<?, ?> secured = (SecuredJpaRepository<?, ?>) repository;
-			final SecurityMixin<?> securityMixin = getSecurityMixin(information.getRepositoryInterface());
+		if (repository instanceof SecuredJpaRepository<?, ?, ?>) {
+			final SecuredJpaRepository<?, ?, ?> secured = (SecuredJpaRepository<?, ?, ?>) repository;
+			final SecurityMixin<?, ?> securityMixin = getSecurityMixin(information.getRepositoryInterface());
 			secured.setSecurityMixin((SecurityMixin) securityMixin);
 		}
 
@@ -137,7 +140,7 @@ public class SecuredJpaRepositoryFactory extends JpaRepositoryFactory {
 	private <T> SecuredQuerydslJpaPredicateExecutor<T> newExecutor(final @NonNull RepositoryMetadata metadata,
 			final @NonNull EntityManager entityManager, final @NonNull EntityPathResolver resolver,
 			final @NonNull CrudMethodMetadata crudMethodMetadata,
-			final @NonNull SecurityMixinWithQuerydsl<T> securityMixin) {
+			final @NonNull SecurityMixinWithQuerydsl<T, ?> securityMixin) {
 
 		final JpaEntityInformation<T, ?> entityInformation = (JpaEntityInformation<T, ?>) getEntityInformation(
 				metadata.getDomainType());

@@ -10,6 +10,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.security.core.context.SecurityContextHolder;
 
 import com.github.vlsergey.springdata.entitysecurity.Condition;
+import com.github.vlsergey.springdata.entitysecurity.QueryType;
 import com.github.vlsergey.springdata.entitysecurity.SecuredWith;
 import com.github.vlsergey.springdata.entitysecurity.SecurityMixin;
 import com.github.vlsergey.springdata.entitysecurity.StandardConditions;
@@ -20,10 +21,9 @@ import lombok.NonNull;
 @SecuredWith(FileTestEntitySecurityMixin.class)
 public interface FileTestEntityRepository extends JpaRepository<FileTestEntity, String> {
 
-	class FileTestEntitySecurityMixin implements SecurityMixin<FileTestEntity> {
-
+	class FileTestEntitySecurityMixin implements SecurityMixin<FileTestEntity, FileTestEntityRepository> {
 		@Override
-		public Condition<FileTestEntity> buildCondition() {
+		public Condition<FileTestEntity, FileTestEntityRepository> buildCondition() {
 			final String login = SecurityContextHolder.getContext().getAuthentication().getName();
 
 			if (login.equals("root")) {
@@ -33,28 +33,17 @@ public interface FileTestEntityRepository extends JpaRepository<FileTestEntity, 
 				return StandardConditions.deny(() -> new RuntimeException("No rights exception"));
 			}
 
-			return new Condition<FileTestEntity>() {
-
-				private static final long serialVersionUID = 1L;
+			return new Condition<FileTestEntity, FileTestEntityRepository>() {
 
 				@Override
-				public void checkEntityDelete(@NonNull FileTestEntity entity) {
-					throw new UnsupportedOperationException("not used in test cases");
-				}
-
-				@Override
-				public void checkEntityInsert(@NonNull FileTestEntity entity) {
-					throw new UnsupportedOperationException("not used in test cases");
-				}
-
-				@Override
-				public void checkEntityUpdate(@NonNull FileTestEntity entity) {
+				public void checkEntityInsert(@NonNull FileTestEntityRepository repository,
+						@NonNull FileTestEntity entity) {
 					throw new UnsupportedOperationException("not used in test cases");
 				}
 
 				@Override
 				public Predicate toPredicate(@NonNull Root<FileTestEntity> root, @NonNull CommonAbstractCriteria query,
-						@NonNull CriteriaBuilder cb) {
+						@NonNull CriteriaBuilder cb, QueryType queryType) {
 
 					final Subquery<Integer> subquery = query.subquery(Integer.class);
 					subquery.select(cb.literal(1));
@@ -76,6 +65,11 @@ public interface FileTestEntityRepository extends JpaRepository<FileTestEntity, 
 				}
 
 			};
+		}
+
+		@Override
+		public void onForbiddenUpdate(FileTestEntity entity) {
+			throw new UnsupportedOperationException("not used in test cases");
 		}
 
 	}

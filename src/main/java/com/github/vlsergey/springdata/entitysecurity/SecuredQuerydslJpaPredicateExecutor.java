@@ -14,18 +14,18 @@ import lombok.NonNull;
 
 public class SecuredQuerydslJpaPredicateExecutor<T> extends QuerydslJpaPredicateExecutor<T> {
 
-	private final @NonNull SecurityMixinWithQuerydsl<T> securityMixin;
+	private final @NonNull SecurityMixinWithQuerydsl<T, ?> securityMixin;
 
 	public SecuredQuerydslJpaPredicateExecutor(final @NonNull JpaEntityInformation<T, ?> entityInformation,
 			final @NonNull EntityManager entityManager, final @NonNull EntityPathResolver resolver,
-			final @NonNull CrudMethodMetadata metadata, final @NonNull SecurityMixinWithQuerydsl<T> securityMixin) {
+			final @NonNull CrudMethodMetadata metadata, final @NonNull SecurityMixinWithQuerydsl<T, ?> securityMixin) {
 		super(entityInformation, entityManager, resolver, metadata);
 		this.securityMixin = securityMixin;
 	}
 
 	@Override
 	protected JPQLQuery<?> createCountQuery(Predicate... predicate) {
-		final ConditionWithQuerydsl<T> condition = securityMixin.buildCondition();
+		final ConditionWithQuerydsl<T, ?> condition = securityMixin.buildCondition();
 		if (condition.isAlwaysTrue()) {
 			return super.createCountQuery(predicate);
 		}
@@ -39,7 +39,7 @@ public class SecuredQuerydslJpaPredicateExecutor<T> extends QuerydslJpaPredicate
 
 	@Override
 	protected JPQLQuery<?> createQuery(Predicate... predicate) {
-		final ConditionWithQuerydsl<T> condition = securityMixin.buildCondition();
+		final ConditionWithQuerydsl<T, ?> condition = securityMixin.buildCondition();
 		if (condition.isAlwaysTrue()) {
 			return super.createCountQuery(predicate);
 		}

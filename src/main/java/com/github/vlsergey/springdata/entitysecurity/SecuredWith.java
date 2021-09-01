@@ -10,6 +10,6 @@ import java.lang.annotation.Target;
 @Target(ElementType.TYPE)
 public @interface SecuredWith {
 
-	Class<? extends SecurityMixin<?>> value();
+	Class<? extends SecurityMixin<?, ?>> value();
 
 }
