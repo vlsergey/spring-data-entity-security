@@ -1,10 +1,14 @@
 package com.github.vlsergey.springdata.entitysecurity;
 
+import java.io.Serializable;
 import java.util.function.Supplier;
 
 import javax.persistence.criteria.CommonAbstractCriteria;
 import javax.persistence.criteria.CriteriaBuilder;
 import javax.persistence.criteria.Root;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.querydsl.QuerydslPredicateExecutor;
 
 import com.querydsl.core.types.Predicate;
 import com.querydsl.core.types.dsl.Expressions;
@@ -16,50 +20,61 @@ import lombok.SneakyThrows;
 public class StandardConditions {
 
 	@SuppressWarnings("unchecked")
-	public static <T> Condition<T> allow() {
-		return (Condition<T>) AllowCondition.INSTANCE;
+	public static <T, R extends JpaRepository<T, ? extends Serializable>> Condition<T, R> allow() {
+		return (Condition<T, R>) AllowCondition.INSTANCE;
 	}
 
 	@SuppressWarnings("unchecked")
-	public static <T> ConditionWithQuerydsl<T> allowWithQuerydsl() {
-		return (ConditionWithQuerydsl<T>) AllowWithQuerydslCondition.INSTANCE_WITH_QUERYDSL;
+	public static <T, R extends JpaRepository<T, ? extends Serializable> & QuerydslPredicateExecutor<T>> //
+	ConditionWithQuerydsl<T, R> allowWithQuerydsl() {
+		return (ConditionWithQuerydsl<T, R>) AllowWithQuerydslCondition.INSTANCE_WITH_QUERYDSL;
 	}
 
-	public static <T> SecurityMixin<T> alwaysAllowSecurityMixin() {
-		return StandardConditions::allow;
+	public static <T, R extends JpaRepository<T, ? extends Serializable>> SecurityMixin<T, R> alwaysAllowSecurityMixin() {
+		return new SecurityMixin<T, R>() {
+			@Override
+			public Condition<T, R> buildCondition() {
+				return allow();
+			}
+
+			@Override
+			public void onForbiddenUpdate(T entity) {
+				throw new AssertionError("This method is not supposed to be called because it's always-allow condtion");
+			}
+		};
 	}
 
-	public static <T> SecurityMixinWithQuerydsl<T> alwaysAllowSecurityMixinWithQuerydsl() {
-		return StandardConditions::allowWithQuerydsl;
+	public static <T, R extends JpaRepository<T, ? extends Serializable> & QuerydslPredicateExecutor<T>> SecurityMixinWithQuerydsl<T, R> alwaysAllowSecurityMixinWithQuerydsl() {
+		return new SecurityMixinWithQuerydsl<T, R>() {
+			@Override
+			public ConditionWithQuerydsl<T, R> buildCondition() {
+				return allowWithQuerydsl();
+			}
+
+			@Override
+			public void onForbiddenUpdate(T entity) {
+				throw new AssertionError("This method is not supposed to be called because it's always-allow condtion");
+			}
+		};
 	}
 
-	public static <T, E extends Throwable> Condition<T> deny(final @NonNull Supplier<E> checkErrorSupplier) {
+	public static <T, R extends JpaRepository<T, ? extends Serializable>, E extends Throwable> Condition<T, R> deny(
+			final @NonNull Supplier<E> checkErrorSupplier) {
 		return new DenyCondition<>(checkErrorSupplier);
 	}
 
-	public static <T, E extends Throwable> ConditionWithQuerydsl<T> denyWithQuerydsl(
-			final @NonNull Supplier<E> checkErrorSupplier) {
+	public static <T, R extends JpaRepository<T, ? extends Serializable> & QuerydslPredicateExecutor<T>, E extends Throwable> //
+	ConditionWithQuerydsl<T, R> denyWithQuerydsl(final @NonNull Supplier<E> checkErrorSupplier) {
 		return new DenyWithQuerydslCondition<>(checkErrorSupplier);
 	}
 
-	private static class AllowCondition<T> implements Condition<T> {
+	private static class AllowCondition<T, R extends JpaRepository<T, ? extends Serializable>>
+			implements Condition<T, R> {
 
-		static final AllowCondition<Object> INSTANCE = new AllowCondition<>();
-
-		private static final long serialVersionUID = 1L;
-
-		@Override
-		public void checkEntityDelete(@NonNull T entity) {
-			// NO OP
-		}
+		static final AllowCondition<?, ?> INSTANCE = new AllowCondition<>();
 
 		@Override
-		public void checkEntityInsert(@NonNull T entity) {
-			// NO OP
-		}
-
-		@Override
-		public void checkEntityUpdate(@NonNull T entity) {
+		public void checkEntityInsert(R repository, T entity) {
 			// NO OP
 		}
 
@@ -75,17 +90,16 @@ public class StandardConditions {
 
 		@Override
 		public javax.persistence.criteria.Predicate toPredicate(@NonNull Root<T> root,
-				@NonNull CommonAbstractCriteria cac, @NonNull CriteriaBuilder cb) {
+				@NonNull CommonAbstractCriteria cac, @NonNull CriteriaBuilder cb, QueryType queryType) {
 			return null;
 		}
 
 	}
 
-	private static class AllowWithQuerydslCondition<T> extends AllowCondition<T> implements ConditionWithQuerydsl<T> {
+	private static class AllowWithQuerydslCondition<T, R extends JpaRepository<T, ? extends Serializable> & QuerydslPredicateExecutor<T>>
+			extends AllowCondition<T, R> implements ConditionWithQuerydsl<T, R> {
 
-		static final AllowWithQuerydslCondition<Object> INSTANCE_WITH_QUERYDSL = new AllowWithQuerydslCondition<>();
-
-		private static final long serialVersionUID = 1L;
+		static final AllowWithQuerydslCondition<?, ?> INSTANCE_WITH_QUERYDSL = new AllowWithQuerydslCondition<>();
 
 		@Override
 		public com.querydsl.core.types.Predicate asPredicate() {
@@ -95,27 +109,14 @@ public class StandardConditions {
 	}
 
 	@AllArgsConstructor
-	private static class DenyCondition<T, E extends Throwable> implements Condition<T> {
-
-		private static final long serialVersionUID = 1L;
+	private static class DenyCondition<T, R extends JpaRepository<T, ? extends Serializable>, E extends Throwable>
+			implements Condition<T, R> {
 
 		private final @NonNull Supplier<E> checkErrorSupplier;
 
 		@Override
 		@SneakyThrows
-		public void checkEntityDelete(@NonNull T entity) {
-			throw checkErrorSupplier.get();
-		}
-
-		@Override
-		@SneakyThrows
-		public void checkEntityInsert(@NonNull T entity) {
-			throw checkErrorSupplier.get();
-		}
-
-		@Override
-		@SneakyThrows
-		public void checkEntityUpdate(@NonNull T entity) {
+		public void checkEntityInsert(@NonNull R repository, @NonNull T entity) {
 			throw checkErrorSupplier.get();
 		}
 
@@ -131,16 +132,14 @@ public class StandardConditions {
 
 		@Override
 		public javax.persistence.criteria.Predicate toPredicate(@NonNull Root<T> root,
-				@NonNull CommonAbstractCriteria cac, @NonNull CriteriaBuilder cb) {
+				@NonNull CommonAbstractCriteria cac, @NonNull CriteriaBuilder cb, QueryType queryType) {
 			return cb.equal(cb.literal(Boolean.TRUE), cb.literal(Boolean.FALSE));
 		}
 
 	}
 
-	private static class DenyWithQuerydslCondition<T, E extends Throwable> extends DenyCondition<T, E>
-			implements ConditionWithQuerydsl<T> {
-
-		private static final long serialVersionUID = 1L;
+	private static class DenyWithQuerydslCondition<T, R extends JpaRepository<T, ? extends Serializable> & QuerydslPredicateExecutor<T>, E extends Throwable>
+			extends DenyCondition<T, R, E> implements ConditionWithQuerydsl<T, R> {
 
 		public DenyWithQuerydslCondition(final @NonNull Supplier<E> checkErrorSupplier) {
 			super(checkErrorSupplier);

@@ -34,7 +34,7 @@ import lombok.NonNull;
 class EntityManagerWrapperFactory {
 
 	private static Map<CriteriaBuilder, CriteriaBuilder> cachedCbProxies = synchronizedMap(new WeakHashMap<>());
-	private static Map<EntityManager, Map<SecurityMixin<?>, EntityManager>> cachedEmProxies = synchronizedMap(
+	private static Map<EntityManager, Map<SecurityMixin<?, ?>, EntityManager>> cachedEmProxies = synchronizedMap(
 			new WeakHashMap<>());
 
 	private static final ClassLoader CLASS_LOADER = EntityManagerWrapperFactory.class.getClassLoader();
@@ -55,7 +55,7 @@ class EntityManagerWrapperFactory {
 				new CriteriaQueryHandler(cb, original));
 	}
 
-	static EntityManager wrap(final @NonNull EntityManager original, final @NonNull SecurityMixin<?> securityMixin) {
+	static EntityManager wrap(final @NonNull EntityManager original, final @NonNull SecurityMixin<?, ?> securityMixin) {
 		return cachedEmProxies.computeIfAbsent(original, em -> new WeakHashMap<>()).computeIfAbsent(securityMixin,
 				sm -> (EntityManager) Proxy.newProxyInstance(CLASS_LOADER, ENTITY_MANAGER_WRAPPER_INTERFACES,
 						new EntityManagerInvocationHandler(original, securityMixin)));
@@ -100,8 +100,8 @@ class EntityManagerWrapperFactory {
 		}
 
 		@Override
-		public void injectConditions(SecurityMixin<?> securityMixin) {
-			final Condition<?> сondition = securityMixin.buildCondition();
+		public void injectConditions(SecurityMixin<?, ?> securityMixin) {
+			final Condition<?, ?> сondition = securityMixin.buildCondition();
 
 			if (
 			// unsupported case
@@ -116,7 +116,7 @@ class EntityManagerWrapperFactory {
 				return;
 			}
 
-			final Predicate secPredicate = сondition.toPredicate((Root) roots.get(0), original, cb);
+			final Predicate secPredicate = сondition.toPredicate((Root) roots.get(0), original, cb, QueryType.SELECT);
 
 			if (restrictionA != null) {
 				original.where((Predicate) restrictionA, secPredicate);
@@ -163,9 +163,9 @@ class EntityManagerWrapperFactory {
 
 	private static final class EntityManagerInvocationHandler implements InvocationHandler {
 		private final @NonNull EntityManager original;
-		private final SecurityMixin<?> securityMixin;
+		private final SecurityMixin<?, ?> securityMixin;
 
-		private EntityManagerInvocationHandler(@NonNull EntityManager original, SecurityMixin<?> securityMixin) {
+		private EntityManagerInvocationHandler(@NonNull EntityManager original, SecurityMixin<?, ?> securityMixin) {
 			this.original = original;
 			this.securityMixin = securityMixin;
 		}
@@ -199,7 +199,7 @@ class EntityManagerWrapperFactory {
 	private interface WrappedCriteriaQuery {
 		CriteriaQuery<?> getDelegate();
 
-		void injectConditions(SecurityMixin<?> securityMixin);
+		void injectConditions(SecurityMixin<?, ?> securityMixin);
 	}
 
 }
