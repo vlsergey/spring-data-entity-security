@@ -83,17 +83,27 @@ public class SecuredJpaRepository<T, ID extends Serializable, R extends JpaRepos
 		}
 
 		final ID currentId = entityInformation.getId(entity);
-		final ID idToCheck;
 		if (!entityManager.contains(entity)) {
-			idToCheck = currentId;
-		} else {
-			final T otherEntityWithCurrentId = entityManager.getReference(getDomainClass(), currentId);
-			if (otherEntityWithCurrentId != entity) {
-				idToCheck = HibernateUtils.<ID>getIdentifier(entityManager, entity)
-						.orElseThrow(() -> new UnsupportedOperationException("Changing ID is not supported yet"));
+			// saving detached entity is just update... if we have entity in database... but
+			// do we?
+			if (existsById(currentId)) {
+				if (!existsById(QueryType.UPDATE, currentId)) {
+					securityMixin.onForbiddenUpdate(entity);
+				}
+				return;
 			} else {
-				idToCheck = currentId;
+				condition.checkEntityInsert(this.repositoryBean, entity);
+				return;
 			}
+		}
+
+		final ID idToCheck;
+		final T otherEntityWithCurrentId = entityManager.getReference(getDomainClass(), currentId);
+		if (otherEntityWithCurrentId != entity) {
+			idToCheck = HibernateUtils.<ID>getIdentifier(entityManager, entity)
+					.orElseThrow(() -> new UnsupportedOperationException("Changing ID is not supported yet"));
+		} else {
+			idToCheck = currentId;
 		}
 
 		if (!existsById(QueryType.UPDATE, idToCheck)) {
@@ -303,34 +313,54 @@ public class SecuredJpaRepository<T, ID extends Serializable, R extends JpaRepos
 
 	@Override
 	public <S extends T> S save(S entity) {
-		final Condition<T, R> condition = securityMixin.buildCondition();
-		checkSave(condition, entity);
-		return super.save(entity);
+		return switchByCondition(() -> {
+			securityMixin.onForbiddenUpdate(entity);
+			return entity;
+		}, () -> super.save(entity), condition -> {
+			checkSave(condition, entity);
+			return super.save(entity);
+		});
 	}
 
 	@Override
 	public <S extends T> List<S> saveAll(Iterable<S> entities) {
-		final Condition<T, R> condition = securityMixin.buildCondition();
-		entities.forEach(entity -> this.checkSave(condition, entity));
-		return super.saveAll(entities);
+		return switchByCondition(() -> {
+			entities.forEach(securityMixin::onForbiddenUpdate);
+			return StreamSupport.stream(entities.spliterator(), false).collect(toList());
+		}, () -> super.saveAll(entities), condition -> {
+			// TODO: optimize batch check
+			entities.forEach(entity -> this.checkSave(condition, entity));
+			return super.saveAll(entities);
+		});
 	}
 
 	@Override
 	public <S extends T> List<S> saveAllAndFlush(Iterable<S> entities) {
-		final Condition<T, R> condition = securityMixin.buildCondition();
-		entities.forEach(entity -> this.checkSave(condition, entity));
-		return super.saveAllAndFlush(entities);
+		return switchByCondition(() -> {
+			entities.forEach(securityMixin::onForbiddenUpdate);
+			return StreamSupport.stream(entities.spliterator(), false).collect(toList());
+		}, () -> super.saveAllAndFlush(entities), condition -> {
+			// TODO: optimize batch check
+			entities.forEach(entity -> this.checkSave(condition, entity));
+			return super.saveAllAndFlush(entities);
+		});
 	}
 
 	protected <E> E switchByCondition(final QueryType queryType, final @NonNull Supplier<E> alwaysFalse,
 			final @NonNull Supplier<E> alwaysTrue, final @NonNull Function<Specification<T>, E> other) {
+		return switchByCondition(alwaysFalse, alwaysTrue,
+				condition -> other.apply(condition.toSpecification(queryType)));
+	}
+
+	protected <E> E switchByCondition(final @NonNull Supplier<E> alwaysFalse, final @NonNull Supplier<E> alwaysTrue,
+			final @NonNull Function<Condition<T, R>, E> other) {
 		final Condition<T, R> condition = securityMixin.buildCondition();
 		if (condition.isAlwaysTrue()) {
 			return alwaysTrue.get();
 		} else if (condition.isAlwaysFalse()) {
 			return alwaysFalse.get();
 		} else {
-			return other.apply(condition.toSpecification(queryType));
+			return other.apply(condition);
 		}
 	}
 

@@ -15,25 +15,36 @@ class SimpleTestEntityTest {
 	private SimpleTestEntityRepository testRepository;
 
 	@Test
-	void testThatNewEntityIsDeletedNotOldOneOnIdChange() {
+	void newEntityIsDeletedNotOldOneOnIdChange() {
 		SimpleTestEntity old = new SimpleTestEntity();
 		old.setId("oldId");
 		old.setValue(42);
 		old = testRepository.save(old);
-		testRepository.flush();
 
 		SimpleTestEntity newEntity = new SimpleTestEntity();
 		newEntity.setId("newId");
 		newEntity.setValue(84);
 		newEntity = testRepository.save(newEntity);
-		testRepository.flush();
 
 		newEntity.setId(old.getId());
 
 		testRepository.delete(newEntity);
+		assertTrue(testRepository.existsById(old.getId()));
+	}
+
+	@Test
+	void savingTwoEntitiesWithSameIdIsJustUpdate() {
+		SimpleTestEntity test1 = new SimpleTestEntity();
+		test1.setId("oldId");
+		test1.setValue(42);
+		test1 = testRepository.save(test1);
 		testRepository.flush();
 
-		assertTrue(testRepository.existsById(old.getId()));
+		SimpleTestEntity test2 = new SimpleTestEntity();
+		test2.setId("oldId");
+		test2.setValue(84);
+		test1 = testRepository.save(test2);
+		testRepository.flush();
 	}
 
 }
