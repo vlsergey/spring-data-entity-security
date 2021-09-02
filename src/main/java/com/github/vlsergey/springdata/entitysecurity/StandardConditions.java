@@ -20,42 +20,23 @@ import lombok.SneakyThrows;
 public class StandardConditions {
 
 	@SuppressWarnings("unchecked")
-	public static <T, R extends JpaRepository<T, ? extends Serializable>> Condition<T, R> allow() {
+	public static <T, R extends JpaRepository<T, ?>> Condition<T, R> alwaysAllowCondition() {
 		return (Condition<T, R>) AllowCondition.INSTANCE;
 	}
 
 	@SuppressWarnings("unchecked")
-	public static <T, R extends JpaRepository<T, ? extends Serializable> & QuerydslPredicateExecutor<T>> //
-	ConditionWithQuerydsl<T, R> allowWithQuerydsl() {
+	public static <T, R extends JpaRepository<T, ?> & QuerydslPredicateExecutor<T>> ConditionWithQuerydsl<T, R> alwaysAllowConditionWithQuerydsl() {
 		return (ConditionWithQuerydsl<T, R>) AllowWithQuerydslCondition.INSTANCE_WITH_QUERYDSL;
 	}
 
-	public static <T, R extends JpaRepository<T, ? extends Serializable>> SecurityMixin<T, R> alwaysAllowSecurityMixin() {
-		return new SecurityMixin<T, R>() {
-			@Override
-			public Condition<T, R> buildCondition() {
-				return allow();
-			}
-
-			@Override
-			public void onForbiddenUpdate(T entity) {
-				throw new AssertionError("This method is not supposed to be called because it's always-allow condtion");
-			}
-		};
+	@SuppressWarnings("unchecked")
+	public static <T, R extends JpaRepository<T, ?>> SecurityMixin<T, R> alwaysAllowSecurityMixin() {
+		return (SecurityMixin<T, R>) AlwaysAllowMixin.INSTANCE;
 	}
 
+	@SuppressWarnings("unchecked")
 	public static <T, R extends JpaRepository<T, ? extends Serializable> & QuerydslPredicateExecutor<T>> SecurityMixinWithQuerydsl<T, R> alwaysAllowSecurityMixinWithQuerydsl() {
-		return new SecurityMixinWithQuerydsl<T, R>() {
-			@Override
-			public ConditionWithQuerydsl<T, R> buildCondition() {
-				return allowWithQuerydsl();
-			}
-
-			@Override
-			public void onForbiddenUpdate(T entity) {
-				throw new AssertionError("This method is not supposed to be called because it's always-allow condtion");
-			}
-		};
+		return (SecurityMixinWithQuerydsl<T, R>) AlwaysAllowMixinWithQuerydsl.INSTANCE_WITH_QUERYDSL;
 	}
 
 	public static <T, R extends JpaRepository<T, ? extends Serializable>, E extends Throwable> Condition<T, R> deny(
@@ -106,6 +87,37 @@ public class StandardConditions {
 			return Expressions.TRUE.eq(Boolean.TRUE);
 		}
 
+	}
+
+	private static class AlwaysAllowMixin<T, R extends JpaRepository<T, ?>> implements SecurityMixin<T, R> {
+
+		static final AlwaysAllowMixin<?, ?> INSTANCE = new AlwaysAllowMixin<>();
+
+		@Override
+		public Condition<T, R> buildCondition() {
+			return alwaysAllowCondition();
+		}
+
+		@Override
+		public void onForbiddenDelete(T entity) {
+			throw new AssertionError("This method is not supposed to be called because it's always-allow condtion");
+		}
+
+		@Override
+		public void onForbiddenUpdate(T entity) {
+			throw new AssertionError("This method is not supposed to be called because it's always-allow condtion");
+		}
+	}
+
+	private static class AlwaysAllowMixinWithQuerydsl<T, R extends JpaRepository<T, ?> & QuerydslPredicateExecutor<T>>
+			extends AlwaysAllowMixin<T, R> implements SecurityMixinWithQuerydsl<T, R> {
+
+		static final AlwaysAllowMixinWithQuerydsl<?, ?> INSTANCE_WITH_QUERYDSL = new AlwaysAllowMixinWithQuerydsl<>();
+
+		@Override
+		public ConditionWithQuerydsl<T, R> buildCondition() {
+			return alwaysAllowConditionWithQuerydsl();
+		}
 	}
 
 	@AllArgsConstructor

@@ -27,7 +27,7 @@ public interface FileTestEntityRepository extends JpaRepository<FileTestEntity, 
 			final String login = SecurityContextHolder.getContext().getAuthentication().getName();
 
 			if (login.equals("root")) {
-				return StandardConditions.allow();
+				return StandardConditions.alwaysAllowCondition();
 			}
 			if (login == null || login.isEmpty()) {
 				return StandardConditions.deny(() -> new RuntimeException("No rights exception"));
@@ -65,6 +65,11 @@ public interface FileTestEntityRepository extends JpaRepository<FileTestEntity, 
 				}
 
 			};
+		}
+
+		@Override
+		public void onForbiddenDelete(FileTestEntity entity) {
+			throw new UnsupportedOperationException("not used in test cases");
 		}
 
 		@Override

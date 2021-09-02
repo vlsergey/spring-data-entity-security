@@ -10,6 +10,7 @@ import javax.persistence.criteria.Root;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.querydsl.QuerydslPredicateExecutor;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.context.SecurityContextHolder;
 
 import com.github.vlsergey.springdata.entitysecurity.ConditionWithQuerydsl;
@@ -32,7 +33,7 @@ public interface OwnedTestEntityRepository
 			final String login = SecurityContextHolder.getContext().getAuthentication().getName();
 
 			if (login.equals("root")) {
-				return StandardConditions.allowWithQuerydsl();
+				return StandardConditions.alwaysAllowConditionWithQuerydsl();
 			}
 			if (login == null || login.isEmpty()) {
 				return StandardConditions.denyWithQuerydsl(() -> new RuntimeException("No rights exception"));
@@ -62,8 +63,13 @@ public interface OwnedTestEntityRepository
 		}
 
 		@Override
+		public void onForbiddenDelete(OwnedTestEntity entity) {
+			throw new AccessDeniedException("access denied");
+		}
+
+		@Override
 		public void onForbiddenUpdate(OwnedTestEntity entity) {
-			throw new UnsupportedOperationException("not used in test cases");
+			throw new AccessDeniedException("access denied");
 		}
 	}
 

@@ -22,6 +22,7 @@ import javax.persistence.criteria.CriteriaQuery;
 import javax.persistence.criteria.Root;
 import javax.persistence.metamodel.SingularAttribute;
 
+import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.data.domain.Example;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -86,8 +87,8 @@ public class SecuredJpaRepository<T, ID extends Serializable, R extends JpaRepos
 		if (!entityManager.contains(entity)) {
 			// saving detached entity is just update... if we have entity in database... but
 			// do we?
-			if (existsById(currentId)) {
-				if (!existsById(QueryType.UPDATE, currentId)) {
+			if (super.existsById(currentId)) {
+				if (!this.existsById(QueryType.UPDATE, currentId)) {
 					securityMixin.onForbiddenUpdate(entity);
 				}
 				return;
@@ -108,7 +109,6 @@ public class SecuredJpaRepository<T, ID extends Serializable, R extends JpaRepos
 
 		if (!existsById(QueryType.UPDATE, idToCheck)) {
 			securityMixin.onForbiddenUpdate(entity);
-			return;
 		}
 	}
 
@@ -128,17 +128,49 @@ public class SecuredJpaRepository<T, ID extends Serializable, R extends JpaRepos
 				condition -> super.count(and(condition, spec)));
 	}
 
+	/**
+	 * return {@literal false} if entity deletion shall be ignored, {@literal true}
+	 * is proceeded
+	 */
+	private boolean checkDelete(T entity) {
+		if (entityInformation.isNew(entity)) {
+			return false;
+		}
+
+		final ID currentId = entityInformation.getId(entity);
+		if (!entityManager.contains(entity)) {
+			// deleting detached entity is just deleting by ID
+			if (super.existsById(currentId)) {
+				if (existsById(QueryType.DELETE, currentId)) {
+					return true;
+				}
+				securityMixin.onForbiddenDelete(entity);
+			}
+			return false;
+		}
+
+		// restore old entity ID
+		try {
+			entityManager.refresh(entity);
+		} catch (EntityNotFoundException exc) {
+			return false;
+		}
+
+		if (!existsById(QueryType.DELETE, currentId)) {
+			securityMixin.onForbiddenDelete(entity);
+		}
+
+		return true;
+	}
+
 	@Override
 	public void delete(T entity) {
-		// restore old entity ID
-		if (!entityInformation.isNew(entity)) {
-			try {
-				entityManager.refresh(entity);
-			} catch (EntityNotFoundException exc) {
-				return;
+		switchByConditionVoid(() -> {
+		}, () -> super.delete(entity), condition -> {
+			if (checkDelete(entity)) {
+				super.delete(entity);
 			}
-		}
-		this.deleteById(entityInformation.getId(entity));
+		});
 	}
 
 	@Override
@@ -177,11 +209,14 @@ public class SecuredJpaRepository<T, ID extends Serializable, R extends JpaRepos
 
 	@Override
 	public void deleteById(final @NonNull ID id) {
+		Supplier<EmptyResultDataAccessException> errorSupplier = () -> new EmptyResultDataAccessException(
+				String.format("No %s entity with id %s exists!", entityInformation.getJavaType(), id), 1);
+
 		switchByConditionVoid(() -> {
-			throw new EntityNotFoundException();
+			throw errorSupplier.get();
 		}, () -> super.deleteById(id), condition -> {
 			if (!existsById(QueryType.DELETE, id)) {
-				throw new EntityNotFoundException();
+				throw errorSupplier.get();
 			}
 			super.deleteById(id);
 		});
