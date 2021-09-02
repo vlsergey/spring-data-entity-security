@@ -72,15 +72,16 @@ public class SecuredJpaRepository<T, ID extends Serializable, R extends SecuredJ
 	}
 
 	private void checkSave(final Condition<T, R> condition, T entity) {
-		if (entityInformation.isNew(entity)) {
-			// conflict with existing db record is not our problem
+		if (entityInformation.isNew(entity) || !entityManager.contains(entity)) {
+			// conflict with existing DB record on INSERT is not our problem
 			condition.checkEntityInsert((R) this, entity);
 			return;
 		}
 
 		final ID currentId = entityInformation.getId(entity);
 		final ID idToCheck;
-		if (entityManager.getReference(getDomainClass(), currentId) != entity) {
+		final T otherEntityWithCurrentId = entityManager.getReference(getDomainClass(), currentId);
+		if (otherEntityWithCurrentId != entity) {
 			idToCheck = HibernateUtils.<ID>getIdentifier(entityManager, entity)
 					.orElseThrow(() -> new UnsupportedOperationException("Changing ID is not supported yet"));
 		} else {
