@@ -27,6 +27,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.support.JpaEntityInformation;
 import org.springframework.data.jpa.repository.support.SimpleJpaRepository;
 import org.springframework.lang.Nullable;
@@ -36,7 +37,7 @@ import lombok.AccessLevel;
 import lombok.NonNull;
 import lombok.Setter;
 
-public class SecuredJpaRepository<T, ID extends Serializable, R extends SecuredJpaRepository<T, ID, R>>
+public class SecuredJpaRepository<T, ID extends Serializable, R extends JpaRepository<T, ID>>
 		extends SimpleJpaRepository<T, ID> {
 
 	private static final String UOE_MESSAGE_BY_EXAMPLE = "by-example methods are not supported by SecuredJpaRepository";
@@ -46,6 +47,9 @@ public class SecuredJpaRepository<T, ID extends Serializable, R extends SecuredJ
 	private final @NonNull JpaEntityInformation<T, ID> entityInformation;
 
 	private final @NonNull EntityManager entityManager;
+
+	@Setter(AccessLevel.PACKAGE)
+	private @NonNull R repositoryBean;
 
 	@Setter(AccessLevel.PACKAGE)
 	private @NonNull SecurityMixin<T, R> securityMixin;
@@ -72,20 +76,24 @@ public class SecuredJpaRepository<T, ID extends Serializable, R extends SecuredJ
 	}
 
 	private void checkSave(final Condition<T, R> condition, T entity) {
-		if (entityInformation.isNew(entity) || !entityManager.contains(entity)) {
+		if (entityInformation.isNew(entity)) {
 			// conflict with existing DB record on INSERT is not our problem
-			condition.checkEntityInsert((R) this, entity);
+			condition.checkEntityInsert(this.repositoryBean, entity);
 			return;
 		}
 
 		final ID currentId = entityInformation.getId(entity);
 		final ID idToCheck;
-		final T otherEntityWithCurrentId = entityManager.getReference(getDomainClass(), currentId);
-		if (otherEntityWithCurrentId != entity) {
-			idToCheck = HibernateUtils.<ID>getIdentifier(entityManager, entity)
-					.orElseThrow(() -> new UnsupportedOperationException("Changing ID is not supported yet"));
-		} else {
+		if (!entityManager.contains(entity)) {
 			idToCheck = currentId;
+		} else {
+			final T otherEntityWithCurrentId = entityManager.getReference(getDomainClass(), currentId);
+			if (otherEntityWithCurrentId != entity) {
+				idToCheck = HibernateUtils.<ID>getIdentifier(entityManager, entity)
+						.orElseThrow(() -> new UnsupportedOperationException("Changing ID is not supported yet"));
+			} else {
+				idToCheck = currentId;
+			}
 		}
 
 		if (!existsById(QueryType.UPDATE, idToCheck)) {

@@ -48,7 +48,7 @@ public interface OwnedTestEntityRepository
 				@Override
 				public void checkEntityInsert(@NonNull OwnedTestEntityRepository repository,
 						@NonNull OwnedTestEntity entity) {
-					throw new UnsupportedOperationException("not used in test cases");
+					// ok
 				}
 
 				@Override

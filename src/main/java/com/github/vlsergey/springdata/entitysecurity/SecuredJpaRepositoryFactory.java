@@ -37,14 +37,22 @@ public class SecuredJpaRepositoryFactory extends JpaRepositoryFactory {
 	private EscapeCharacter escapeCharacter = EscapeCharacter.DEFAULT;
 	private final PersistenceProvider extractor;
 	private JpaQueryMethodFactory queryMethodFactory;
+	private ThreadLocal<SecuredJpaRepository> currentlyProcessedRepositoryImplementation = new ThreadLocal<>();
 	private ThreadLocal<Class<?>> currentlyProcessedRepositoryInterface = new ThreadLocal<>();
 
 	@Override
 	public <T> T getRepository(Class<T> repositoryInterface, RepositoryFragments fragments) {
 		this.currentlyProcessedRepositoryInterface.set(repositoryInterface);
 		try {
-			return super.getRepository(repositoryInterface, fragments);
+			final T repository = super.getRepository(repositoryInterface, fragments);
+
+			final SecuredJpaRepository securedJpaRepository = currentlyProcessedRepositoryImplementation.get();
+			if (securedJpaRepository != null) {
+				securedJpaRepository.setRepositoryBean((JpaRepository) repository);
+			}
+			return repository;
 		} finally {
+			this.currentlyProcessedRepositoryImplementation.remove();
 			this.currentlyProcessedRepositoryInterface.remove();
 		}
 	}
@@ -131,6 +139,7 @@ public class SecuredJpaRepositoryFactory extends JpaRepositoryFactory {
 			final SecuredJpaRepository<?, ?, ?> secured = (SecuredJpaRepository<?, ?, ?>) repository;
 			final SecurityMixin<?, ?> securityMixin = getSecurityMixin(information.getRepositoryInterface());
 			secured.setSecurityMixin((SecurityMixin) securityMixin);
+			currentlyProcessedRepositoryImplementation.set(secured);
 		}
 
 		return repository;

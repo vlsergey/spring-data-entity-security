@@ -2,6 +2,7 @@ package com.github.vlsergey.springdata.entitysecurity.owned;
 
 import static java.util.Collections.emptyList;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import java.util.List;
 import java.util.UUID;
@@ -77,6 +78,19 @@ class OwnedEntityTest {
 
 		assertWhenDoThenQueryMatchesPattern(() -> testRepository.findByValue(42),
 				"^select .* from owned_test_entity .* where .*value=\\? and .*owner=\\?$");
+	}
+
+	@Test
+	void testDoubleSave() {
+		SecurityContextHolder.getContext()
+				.setAuthentication(new TestingAuthenticationToken("testUser", null, emptyList()));
+
+		OwnedTestEntity test = new OwnedTestEntity();
+		test.setOwner("testUser");
+		test.setValue(42);
+		test = testRepository.save(test);
+		test = testRepository.save(test);
+		assertNotNull(test);
 	}
 
 }
