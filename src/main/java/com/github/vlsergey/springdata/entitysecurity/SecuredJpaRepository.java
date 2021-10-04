@@ -304,7 +304,7 @@ public class SecuredJpaRepository<T, ID extends Serializable, R extends JpaRepos
 
 	@Override
 	public List<T> findAllById(Iterable<ID> ids) {
-		return switchByCondition(QueryType.SELECT, Collections::emptyList, () -> findAllById(ids),
+		return switchByCondition(QueryType.SELECT, Collections::emptyList, () -> super.findAllById(ids),
 				// TODO: optimize with batch query by ID
 				condition -> StreamSupport.stream(ids.spliterator(), false).map(SecuredJpaRepository.this::findById)
 						.map(op -> op.map(Collections::singletonList).orElse(emptyList())).flatMap(Collection::stream)
