@@ -55,7 +55,8 @@ public class StandardConditions {
 		static final AllowCondition<?, ?> INSTANCE = new AllowCondition<>();
 
 		@Override
-		public void checkEntityInsert(R repository, T entity) {
+		public void checkEntity(final @NonNull R repository, final @NonNull T entity,
+				final @NonNull QueryType queryType) {
 			// NO OP
 		}
 
@@ -70,8 +71,9 @@ public class StandardConditions {
 		}
 
 		@Override
-		public javax.persistence.criteria.Predicate toPredicate(@NonNull Root<T> root,
-				@NonNull CommonAbstractCriteria cac, @NonNull CriteriaBuilder cb, QueryType queryType) {
+		public javax.persistence.criteria.Predicate toPredicate(final @NonNull Root<T> root,
+				final @NonNull CommonAbstractCriteria cac, final @NonNull CriteriaBuilder cb,
+				final @NonNull QueryType queryType) {
 			return null;
 		}
 
@@ -99,14 +101,10 @@ public class StandardConditions {
 		}
 
 		@Override
-		public void onForbiddenDelete(T entity) {
+		public void onForbiddenOperation(final @NonNull T entity, final @NonNull QueryType queryType) {
 			throw new AssertionError("This method is not supposed to be called because it's always-allow condtion");
 		}
 
-		@Override
-		public void onForbiddenUpdate(T entity) {
-			throw new AssertionError("This method is not supposed to be called because it's always-allow condtion");
-		}
 	}
 
 	private static class AlwaysAllowMixinWithQuerydsl<T, R extends JpaRepository<T, ?> & QuerydslPredicateExecutor<T>>
@@ -128,7 +126,8 @@ public class StandardConditions {
 
 		@Override
 		@SneakyThrows
-		public void checkEntityInsert(@NonNull R repository, @NonNull T entity) {
+		public void checkEntity(final @NonNull R repository, final @NonNull T entity,
+				final @NonNull QueryType queryType) {
 			throw checkErrorSupplier.get();
 		}
 
@@ -143,8 +142,9 @@ public class StandardConditions {
 		}
 
 		@Override
-		public javax.persistence.criteria.Predicate toPredicate(@NonNull Root<T> root,
-				@NonNull CommonAbstractCriteria cac, @NonNull CriteriaBuilder cb, QueryType queryType) {
+		public javax.persistence.criteria.Predicate toPredicate(final @NonNull Root<T> root,
+				final @NonNull CommonAbstractCriteria cac, final @NonNull CriteriaBuilder cb,
+				final @NonNull QueryType queryType) {
 			return cb.equal(cb.literal(Boolean.TRUE), cb.literal(Boolean.FALSE));
 		}
 

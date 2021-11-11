@@ -36,8 +36,8 @@ public interface FileTestEntityRepository extends JpaRepository<FileTestEntity, 
 			return new Condition<FileTestEntity, FileTestEntityRepository>() {
 
 				@Override
-				public void checkEntityInsert(@NonNull FileTestEntityRepository repository,
-						@NonNull FileTestEntity entity) {
+				public void checkEntity(@NonNull FileTestEntityRepository repository, @NonNull FileTestEntity entity,
+						@NonNull QueryType queryType) {
 					throw new UnsupportedOperationException("not used in test cases");
 				}
 
@@ -68,12 +68,7 @@ public interface FileTestEntityRepository extends JpaRepository<FileTestEntity, 
 		}
 
 		@Override
-		public void onForbiddenDelete(FileTestEntity entity) {
-			throw new UnsupportedOperationException("not used in test cases");
-		}
-
-		@Override
-		public void onForbiddenUpdate(FileTestEntity entity) {
+		public void onForbiddenOperation(FileTestEntity entity, QueryType queryType) {
 			throw new UnsupportedOperationException("not used in test cases");
 		}
 

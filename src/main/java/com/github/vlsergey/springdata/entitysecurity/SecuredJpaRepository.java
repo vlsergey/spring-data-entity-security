@@ -6,8 +6,11 @@ import static java.util.stream.Collectors.toList;
 import java.io.Serializable;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -33,6 +36,8 @@ import org.springframework.data.jpa.repository.support.JpaEntityInformation;
 import org.springframework.data.jpa.repository.support.SimpleJpaRepository;
 import org.springframework.lang.Nullable;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import lombok.AccessLevel;
 import lombok.NonNull;
@@ -40,6 +45,8 @@ import lombok.Setter;
 
 public class SecuredJpaRepository<T, ID extends Serializable, R extends JpaRepository<T, ID>>
 		extends SimpleJpaRepository<T, ID> {
+
+	private static final Object TXSM_KEY_USER_ID = new Object();
 
 	private static final String UOE_MESSAGE_BY_EXAMPLE = "by-example methods are not supported by SecuredJpaRepository";
 
@@ -67,6 +74,27 @@ public class SecuredJpaRepository<T, ID extends Serializable, R extends JpaRepos
 		return a == null ? b : a.and(b);
 	}
 
+	private static void invalidateSuccessCacheIfUserChanged(final @NonNull Object actualUserKey) {
+		final Object stored = TransactionSynchronizationManager.getResource(TXSM_KEY_USER_ID);
+
+		if (stored == null) {
+			TransactionSynchronizationManager.bindResource(TXSM_KEY_USER_ID, actualUserKey);
+			TransactionSynchronizationManager.registerSynchronization(UnbindUserIdTxSync.INSTANCE);
+			return;
+		}
+
+		if (!Objects.equals(stored, actualUserKey)) {
+			for (QueryType qt : QueryType.values()) {
+				final Set<?> cache = (Set<?>) TransactionSynchronizationManager.getResource(qt);
+				if (cache != null) {
+					cache.clear();
+				}
+			}
+			TransactionSynchronizationManager.unbindResource(TXSM_KEY_USER_ID);
+			TransactionSynchronizationManager.bindResource(TXSM_KEY_USER_ID, actualUserKey);
+		}
+	}
+
 	private @NonNull Specification<T> buildIdCondition(ID id) {
 		final SingularAttribute<? super T, ?> idAttribute = this.entityInformation.getIdAttribute();
 		if (idAttribute == null) {
@@ -74,58 +102,6 @@ public class SecuredJpaRepository<T, ID extends Serializable, R extends JpaRepos
 		}
 
 		return (root, cq, cb) -> cb.equal(root.get(idAttribute.getName()), id);
-	}
-
-	private void checkSave(final Condition<T, R> condition, T entity) {
-		if (entityInformation.isNew(entity)) {
-			// conflict with existing DB record on INSERT is not our problem
-			condition.checkEntityInsert(this.repositoryBean, entity);
-			return;
-		}
-
-		final ID currentId = entityInformation.getId(entity);
-		if (!entityManager.contains(entity)) {
-			// saving detached entity is just update... if we have entity in database... but
-			// do we?
-			if (super.existsById(currentId)) {
-				if (!this.existsById(QueryType.UPDATE, currentId)) {
-					securityMixin.onForbiddenUpdate(entity);
-				}
-				return;
-			} else {
-				condition.checkEntityInsert(this.repositoryBean, entity);
-				return;
-			}
-		}
-
-		final ID idToCheck;
-		final T otherEntityWithCurrentId = entityManager.getReference(getDomainClass(), currentId);
-		if (otherEntityWithCurrentId != entity) {
-			idToCheck = HibernateUtils.<ID>getIdentifier(entityManager, entity)
-					.orElseThrow(() -> new UnsupportedOperationException("Changing ID is not supported yet"));
-		} else {
-			idToCheck = currentId;
-		}
-
-		if (!existsById(QueryType.UPDATE, idToCheck)) {
-			securityMixin.onForbiddenUpdate(entity);
-		}
-	}
-
-	@Override
-	public long count() {
-		return switchByCondition(QueryType.SELECT, () -> 0L, super::count, super::count);
-	}
-
-	@Override
-	public <S extends T> long count(Example<S> example) {
-		throw new UnsupportedOperationException(UOE_MESSAGE_BY_EXAMPLE);
-	}
-
-	@Override
-	public long count(Specification<T> spec) {
-		return switchByCondition(QueryType.SELECT, () -> 0L, () -> super.count(spec),
-				condition -> super.count(and(condition, spec)));
 	}
 
 	/**
@@ -149,18 +125,130 @@ public class SecuredJpaRepository<T, ID extends Serializable, R extends JpaRepos
 			return false;
 		}
 
-		// restore old entity ID
+		// restore old entity information
 		try {
 			entityManager.refresh(entity);
 		} catch (EntityNotFoundException exc) {
 			return false;
 		}
 
-		if (!existsById(QueryType.DELETE, currentId)) {
-			securityMixin.onForbiddenDelete(entity);
+		checkWithCache(securityMixin.buildCondition(), entity, QueryType.DELETE);
+		return true;
+	}
+
+	private void checkSave(final Condition<T, R> condition, T entity) {
+		if (entityInformation.isNew(entity)) {
+			// conflict with existing DB record on INSERT is not our problem
+			checkWithCache(condition, entity, QueryType.INSERT);
+			return;
 		}
 
-		return true;
+		final ID currentId = entityInformation.getId(entity);
+		if (!entityManager.contains(entity)) {
+			// saving detached entity is just update... if we have entity in database... but
+			// do we?
+
+			T fromDb = entityManager.find(getDomainClass(), currentId);
+			if (fromDb != null) {
+				checkWithCache(condition, fromDb, QueryType.UPDATE);
+				checkWithCache(condition, entity, QueryType.UPDATE);
+				return;
+			} else {
+				checkWithCache(condition, entity, QueryType.INSERT);
+				return;
+			}
+		}
+
+		// the problem here -- we MAY have object in DB with different values, that lead
+		// to different check results (like changing owner attribute of file). We again
+		// need to check both
+
+		/*
+		 * Hibernate-only optimization (trying to do something in case when current
+		 * object is not yet in DB, thus reducing DB lookup queries)
+		 */
+		final Optional<Boolean> existsInDatabase = HibernateUtils.isExistsInDatabase(entityManager, entity);
+		if (!existsInDatabase.orElse(true)) {
+			// If entity does not exists in DB (i.e. not saved yet)
+			checkWithCache(condition, entity, QueryType.INSERT);
+			return;
+		}
+
+		final ID idToCheck;
+		final T otherEntityWithCurrentId = entityManager.getReference(getDomainClass(), currentId);
+		if (otherEntityWithCurrentId != entity) {
+			idToCheck = HibernateUtils.<ID>getIdentifier(entityManager, entity)
+					.orElseThrow(() -> new UnsupportedOperationException("Changing ID is not supported yet"));
+		} else {
+			idToCheck = currentId;
+		}
+
+		if (!existsById(QueryType.UPDATE, idToCheck) && super.existsById(idToCheck)) {
+			securityMixin.onForbiddenUpdate(entity);
+		} else {
+			checkWithCache(condition, entity, QueryType.INSERT);
+		}
+	}
+
+	void checkWithCache(final Condition<T, R> condition, final T entity, final QueryType queryType) {
+		if (condition.isAlwaysTrue()) {
+			return;
+		}
+		if (condition.isAlwaysFalse()) {
+			securityMixin.onForbiddenOperation(entity, queryType);
+			return;
+		}
+
+		if (!TransactionSynchronizationManager.isActualTransactionActive()) {
+			condition.checkEntity(repositoryBean, entity, queryType);
+			return;
+		}
+
+		final Object entityCacheKey = condition.getEntitySecurityCheckCacheKey(entity);
+		final Object currentUserSecurityCheckCacheKey = condition.getCurrentUserSecurityCheckCacheKey();
+
+		if (entityCacheKey == null || currentUserSecurityCheckCacheKey == null) {
+			condition.checkEntity(repositoryBean, entity, queryType);
+			return;
+		}
+
+		invalidateSuccessCacheIfUserChanged(currentUserSecurityCheckCacheKey);
+
+		@SuppressWarnings("unchecked")
+		Set<Object> successChecksKeys = (Set<Object>) TransactionSynchronizationManager.getResource(queryType);
+		if (successChecksKeys != null && successChecksKeys.contains(entityCacheKey)) {
+			return;
+		}
+
+		condition.checkEntity(repositoryBean, entity, queryType);
+
+		if (successChecksKeys == null) {
+			successChecksKeys = new HashSet<>();
+			TransactionSynchronizationManager.bindResource(queryType, successChecksKeys);
+			TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+				@Override
+				public void afterCompletion(int status) {
+					TransactionSynchronizationManager.unbindResource(queryType);
+				}
+			});
+		}
+		successChecksKeys.add(entityCacheKey);
+	}
+
+	@Override
+	public long count() {
+		return switchByCondition(QueryType.SELECT, () -> 0L, super::count, super::count);
+	}
+
+	@Override
+	public <S extends T> long count(Example<S> example) {
+		throw new UnsupportedOperationException(UOE_MESSAGE_BY_EXAMPLE);
+	}
+
+	@Override
+	public long count(Specification<T> spec) {
+		return switchByCondition(QueryType.SELECT, () -> 0L, () -> super.count(spec),
+				condition -> super.count(and(condition, spec)));
 	}
 
 	@Override
@@ -381,13 +469,13 @@ public class SecuredJpaRepository<T, ID extends Serializable, R extends JpaRepos
 		});
 	}
 
-	protected <E> E switchByCondition(final QueryType queryType, final @NonNull Supplier<E> alwaysFalse,
+	private <E> E switchByCondition(final @NonNull QueryType queryType, final @NonNull Supplier<E> alwaysFalse,
 			final @NonNull Supplier<E> alwaysTrue, final @NonNull Function<Specification<T>, E> other) {
 		return switchByCondition(alwaysFalse, alwaysTrue,
 				condition -> other.apply(condition.toSpecification(queryType)));
 	}
 
-	protected <E> E switchByCondition(final @NonNull Supplier<E> alwaysFalse, final @NonNull Supplier<E> alwaysTrue,
+	private <E> E switchByCondition(final @NonNull Supplier<E> alwaysFalse, final @NonNull Supplier<E> alwaysTrue,
 			final @NonNull Function<Condition<T, R>, E> other) {
 		final Condition<T, R> condition = securityMixin.buildCondition();
 		if (condition.isAlwaysTrue()) {
@@ -399,7 +487,7 @@ public class SecuredJpaRepository<T, ID extends Serializable, R extends JpaRepos
 		}
 	}
 
-	protected void switchByConditionVoid(final @NonNull Runnable alwaysFalse, final @NonNull Runnable alwaysTrue,
+	private void switchByConditionVoid(final @NonNull Runnable alwaysFalse, final @NonNull Runnable alwaysTrue,
 			final @NonNull Consumer<Condition<T, R>> other) {
 		final Condition<T, R> condition = securityMixin.buildCondition();
 		if (condition.isAlwaysTrue()) {
@@ -408,6 +496,16 @@ public class SecuredJpaRepository<T, ID extends Serializable, R extends JpaRepos
 			alwaysFalse.run();
 		} else {
 			other.accept(condition);
+		}
+	}
+
+	private static final class UnbindUserIdTxSync implements TransactionSynchronization {
+
+		static final UnbindUserIdTxSync INSTANCE = new UnbindUserIdTxSync();
+
+		@Override
+		public void afterCompletion(int status) {
+			TransactionSynchronizationManager.unbindResource(TXSM_KEY_USER_ID);
 		}
 	}
 }
