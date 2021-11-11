@@ -58,6 +58,37 @@ class WrongOwnerTest {
 	}
 
 	@Test
+	void existsByIdReturnsFalse() {
+		assertFalse(testRepository.existsById(notMyEntityId));
+	}
+
+	@Test
+	void saveAndFlushNewItemWithWrondIdThrowsException() {
+		OwnedTestEntity barItem = new OwnedTestEntity();
+		barItem.setOwner("bar");
+		barItem.setValue(84);
+
+		OwnedTestEntity afterSave = testRepository.save(barItem);
+		afterSave.setId(notMyEntityId);
+
+		// throws exception that another entity with this ID exists in DB
+		assertThrows(JpaSystemException.class, () -> testRepository.saveAndFlush(afterSave));
+	}
+
+	@Test
+	void saveExistingItemWithChangedAndWrondIdThrowsException() {
+		OwnedTestEntity barItem = new OwnedTestEntity();
+		barItem.setOwner("bar");
+		barItem.setValue(84);
+
+		OwnedTestEntity afterSave = testRepository.saveAndFlush(barItem);
+		afterSave.setId(notMyEntityId);
+
+		// throws exception that another entity with this ID exists in DB
+		assertThrows(JpaSystemException.class, () -> testRepository.save(afterSave));
+	}
+
+	@Test
 	void saveNewItemWithCorrectIdIsOkay() {
 		OwnedTestEntity barItem = new OwnedTestEntity();
 		barItem.setOwner("bar");
@@ -73,25 +104,9 @@ class WrongOwnerTest {
 		barItem.setOwner("bar");
 		barItem.setValue(84);
 
-		assertThrows(AccessDeniedException.class, () -> testRepository.save(barItem));
-	}
-
-	@Test
-	void saveExistingItemWithWrondIdThrowsException() {
-		OwnedTestEntity barItem = new OwnedTestEntity();
-		barItem.setOwner("bar");
-		barItem.setValue(84);
-
-		OwnedTestEntity afterSave = testRepository.save(barItem);
-		afterSave.setId(notMyEntityId);
-
-		// actually other exception (not allowed to mangle with ID)
-		assertThrows(JpaSystemException.class, () -> testRepository.save(afterSave));
-	}
-
-	@Test
-	void existsByIdReturnsFalse() {
-		assertFalse(testRepository.existsById(notMyEntityId));
+		assertThrows(AccessDeniedException.class, () -> {
+			testRepository.save(barItem);
+		});
 	}
 
 }

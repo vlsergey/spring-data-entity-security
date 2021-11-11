@@ -18,12 +18,15 @@ import com.github.vlsergey.springdata.entitysecurity.QueryType;
 import com.github.vlsergey.springdata.entitysecurity.SecuredWith;
 import com.github.vlsergey.springdata.entitysecurity.SecurityMixinWithQuerydsl;
 import com.github.vlsergey.springdata.entitysecurity.StandardConditions;
+import com.google.common.base.Objects;
 
 import lombok.NonNull;
 
 @SecuredWith(OwnedTestEntityRepository.OwnedTestEntitySecurityMixin.class)
 public interface OwnedTestEntityRepository
 		extends JpaRepository<OwnedTestEntity, UUID>, QuerydslPredicateExecutor<OwnedTestEntity> {
+
+	List<OwnedTestEntity> findByValue(int value);
 
 	class OwnedTestEntitySecurityMixin
 			implements SecurityMixinWithQuerydsl<OwnedTestEntity, OwnedTestEntityRepository> {
@@ -44,12 +47,24 @@ public interface OwnedTestEntityRepository
 				@Override
 				public com.querydsl.core.types.@NonNull Predicate asPredicate() {
 					return null;
+				};
+
+				@Override
+				public void checkEntity(@NonNull OwnedTestEntityRepository repository, @NonNull OwnedTestEntity entity,
+						@NonNull QueryType queryType) {
+					if (!Objects.equal(entity.getOwner(), login)) {
+						throw new AccessDeniedException("No rights exception");
+					}
 				}
 
 				@Override
-				public void checkEntityInsert(@NonNull OwnedTestEntityRepository repository,
-						@NonNull OwnedTestEntity entity) {
-					// ok
+				public Object getCurrentUserSecurityCheckCacheKey() {
+					return login;
+				}
+
+				@Override
+				public Object getEntitySecurityCheckCacheKey(OwnedTestEntity entity) {
+					return entity.getOwner();
 				}
 
 				@Override
@@ -63,16 +78,10 @@ public interface OwnedTestEntityRepository
 		}
 
 		@Override
-		public void onForbiddenDelete(OwnedTestEntity entity) {
+		public void onForbiddenOperation(OwnedTestEntity entity, QueryType queryType) {
 			throw new AccessDeniedException("access denied");
 		}
 
-		@Override
-		public void onForbiddenUpdate(OwnedTestEntity entity) {
-			throw new AccessDeniedException("access denied");
-		}
 	}
-
-	List<OwnedTestEntity> findByValue(int value);
 
 }

@@ -4,6 +4,8 @@ import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.emptyCollectionOf;
+import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.matchesPattern;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import java.util.List;
@@ -68,16 +70,47 @@ class OwnedEntityTest {
 	}
 
 	@Test
-	void testDoubleSave() {
+	void testDoubleSaveWithoutFlash() {
 		SecurityContextHolder.getContext()
 				.setAuthentication(new TestingAuthenticationToken("testUser", null, emptyList()));
 
 		OwnedTestEntity test = new OwnedTestEntity();
 		test.setOwner("testUser");
 		test.setValue(42);
-		test = testRepository.save(test);
+
 		test = testRepository.save(test);
 		assertNotNull(test);
+
+		OwnedTestEntity beforeSecondSave = test;
+		List<String> queries = queryListener.listen(() -> {
+			testRepository.save(beforeSecondSave);
+		});
+
+		assertThat(queries, hasSize(0));
+	}
+
+	@Test
+	void testDoubleSaveWithFlash() {
+		SecurityContextHolder.getContext()
+				.setAuthentication(new TestingAuthenticationToken("testUser", null, emptyList()));
+
+		OwnedTestEntity test = new OwnedTestEntity();
+		test.setOwner("testUser");
+		test.setValue(42);
+
+		// flash in DB -- thus on second save DB check is mandatory
+		// TODO: ignore second check if entity is not dirty
+		test = testRepository.saveAndFlush(test);
+		assertNotNull(test);
+
+		OwnedTestEntity beforeSecondSave = test;
+		List<String> queries = queryListener.listen(() -> {
+			testRepository.save(beforeSecondSave);
+		});
+
+		assertThat(queries, hasSize(1));
+		assertThat(queries.get(0),
+				matchesPattern("^select 1 as .* from owned_test_entity .* where .*id=\\? and .*owner=\\?$"));
 	}
 
 	@Test

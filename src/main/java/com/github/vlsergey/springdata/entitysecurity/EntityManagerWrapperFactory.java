@@ -28,7 +28,7 @@ import lombok.NonNull;
  * There is no simple way to customize {@link JpaQueryCreator}, so we injecting
  * additional condition directly into CriteriaQuery via wrapping EntityManager,
  * CriteriaBuilder and CriteriaQuery.
- * 
+ *
  * Yeah, i know, it's ugly and may break any moment. Feel free to do better.
  */
 class EntityManagerWrapperFactory {
